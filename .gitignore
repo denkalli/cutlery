@@ -16,6 +16,9 @@ __pycache__/
 *.log
 *.tmp
 
-# System files
+# System & IDE local environments
 .DS_Store
 Thumbs.db
+/.agents/
+/.vscode/
+/.idea/
