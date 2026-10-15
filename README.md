@@ -72,8 +72,8 @@ A lightweight, high-performance **Roblox Studio launcher for Linux**, featuring 
 ### Installation & Build
 1. Clone this repository:
    ```bash
-   git clone https://github.com/YourUsername/Cutlery.git
-   cd Cutlery
+   git clone https://github.com/denkalli/clutery.git
+   cd clutery
    ```
 
 2. Compile Cutlery (Rust binary):
