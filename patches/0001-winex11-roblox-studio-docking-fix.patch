@@ -1,0 +1,81 @@
+diff --git a/dlls/winex11.drv/mouse.c b/dlls/winex11.drv/mouse.c
+index cb79ed5..85b0adf 100644
+--- a/dlls/winex11.drv/mouse.c
++++ b/dlls/winex11.drv/mouse.c
+@@ -1643,11 +1643,17 @@ BOOL X11DRV_EnterNotify( HWND hwnd, XEvent *xev )
+     POINT pt = { event->x, event->y }, root = { event->x_root, event->y_root };
+     UINT time = EVENT_x11_time_to_win32_time( event->time );
+ 
++    HWND capture = get_capture_window();
++
+     TRACE( "hwnd %p/%lx pos %s detail %d\n", hwnd, event->window, wine_dbgstr_point( &pt ), event->detail );
+ 
+     x11drv_thread_data()->keymapnotify_hwnd = hwnd;
+ 
+-    if (hwnd == NtUserGetAncestor( get_capture_window(), GA_ROOT )) return FALSE;
++    /* When a window has active mouse capture (e.g. during drag-and-drop or docking moves),
++     * do not allow EnterNotify on newly mapped overlay windows (such as Qtitan docking guide
++     * diamonds) to hijack input or cause 2-frame mouseleave/destruction cycles. */
++    if (capture && hwnd != capture && hwnd != NtUserGetAncestor( capture, GA_ROOT )) return FALSE;
++    if (hwnd == NtUserGetAncestor( capture, GA_ROOT )) return FALSE;
+ 
+     if (is_old_motion_event( event->serial ))
+     {
+diff --git a/dlls/winex11.drv/window.c b/dlls/winex11.drv/window.c
+index d7df0a8..9e1737c 100644
+--- a/dlls/winex11.drv/window.c
++++ b/dlls/winex11.drv/window.c
+@@ -1467,7 +1467,18 @@ static void window_set_config( struct x11drv_win_data *data, RECT rect, BOOL abo
+     data->configure_serial = NextRequest( data->display );
+     TRACE( "window %p/%lx, requesting config %s mask %#x above %u, serial %lu\n", data->hwnd, data->whole_window,
+            wine_dbgstr_rect(new_rect), mask, above, data->configure_serial );
+-    XReconfigureWMWindow( data->display, data->whole_window, data->vis.screen, mask, &changes );
++    if (data->managed)
++    {
++        XReconfigureWMWindow( data->display, data->whole_window, data->vis.screen, mask, &changes );
++    }
++    else
++    {
++        /* For unmanaged / override-redirect windows (e.g. Qtitan docking markers and guides),
++         * WMs ignore synthetic ConfigureRequest events from XReconfigureWMWindow.
++         * Call XConfigureWindow directly to apply geometry and stacking changes. */
++        XConfigureWindow( data->display, data->whole_window, mask, &changes );
++        if (above) XRaiseWindow( data->display, data->whole_window );
++    }
+ }
+ 
+ /***********************************************************************
+@@ -3623,6 +3634,21 @@ LRESULT X11DRV_SysCommand( HWND hwnd, WPARAM wparam, LPARAM lparam, const POINT
+     switch (wparam & 0xfff0)
+     {
+     case SC_MOVE:
++        /* Under rootless X11, _NET_WM_MOVERESIZE causes the window manager to grab the
++         * pointer and swallow all intermediate motion/moving events.
++         * As a result, Roblox Studio (QtitanDocking) never receives WM_MOVING notifications,
++         * preventing docking targets and guide markers from showing up, making panels un-dockable.
++         * By returning failure (-1), win32u executes its internal sys_command_size_move loop,
++         * which captures the cursor in Win32, sends continuous WM_MOVING messages, and allows
++         * native docking detection to work smoothly. */
++        if ((NtUserGetWindowLongW( hwnd, GWL_EXSTYLE ) & WS_EX_TOOLWINDOW) ||
++            (process_name && (strstr( process_name, "Roblox" ) || strstr( process_name, "roblox" ))) ||
++            getenv( "WINE_STUDIO_DOCKING_FIX" ))
++        {
++            TRACE( "Bypassing _NET_WM_MOVERESIZE for window %p to enable Win32 sys_command_size_move\n", hwnd );
++            goto failed;
++        }
++
+         if (!hittest) dir = _NET_WM_MOVERESIZE_MOVE_KEYBOARD;
+         else dir = _NET_WM_MOVERESIZE_MOVE;
+         break;
+diff --git a/dlls/winex11.drv/x11drv_main.c b/dlls/winex11.drv/x11drv_main.c
+index b14d4d1..6c9d0e5 100644
+--- a/dlls/winex11.drv/x11drv_main.c
++++ b/dlls/winex11.drv/x11drv_main.c
+@@ -639,6 +639,7 @@ NTSTATUS __wine_unix_lib_init(void)
+ #endif
+ 
+     setup_options();
++    fprintf( stderr, "[VinegarFork] Custom winex11.drv loaded successfully! (PID %d)\n", getpid() );
+ 
+     /* Open display */
+ 

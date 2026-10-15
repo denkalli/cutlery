@@ -1,0 +1,12 @@
+{
+  "FFlagDebugGraphicsPreferD3D11": "True",
+  "FFlagDebugGraphicsDisableDirect3D11": "False",
+  "FFlagDebugGraphicsPreferVulkan": "False",
+  "FFlagDebugGraphicsDisableOpenGL": "True",
+  "FFlagFastGPULightCulling3": "True",
+  "FFlagRenderFixImpreciseLightGrid": "True",
+  "DFIntTaskSchedulerTargetFps": 60,
+  "FFlagDebugDisableTelemetryWait": "True",
+  "FFlagDebugDisableTelemetryEvent": "True",
+  "FFlagStudioMultiSelectDragger": "True"
+}

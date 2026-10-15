@@ -1,0 +1,21 @@
+# Build artifacts
+/target/
+bin/cutlery
+
+# Local testbed and Wine runtime data
+/sandbox/
+/wine-src/
+/wine-build/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary and log files
+*.log
+*.tmp
+
+# System files
+.DS_Store
+Thumbs.db

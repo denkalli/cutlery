@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "Roblox_Studio": {
+      "command": "/home/kalli/Documentos/Antigravity/VinegarFork/bin/cutlery",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}

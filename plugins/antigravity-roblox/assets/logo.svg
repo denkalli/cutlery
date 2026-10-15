@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cutleryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF5252" />
+      <stop offset="50%" stop-color="#FF1744" />
+      <stop offset="100%" stop-color="#D50000" />
+    </linearGradient>
+    <linearGradient id="metalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#CFD8DC" />
+    </linearGradient>
+    <filter id="dropShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Background Squircle -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#cutleryGrad)" filter="url(#dropShadow)" />
+
+  <!-- Inner Soft Border -->
+  <rect x="34" y="34" width="444" height="444" rx="110" fill="none" stroke="#FFFFFF" stroke-opacity="0.25" stroke-width="4" />
+
+  <!-- Stylized Fork & Knife Emblem -->
+  <g fill="url(#metalGrad)" transform="translate(136, 116)">
+    <!-- Knife (Right) -->
+    <path d="M 170 30 C 170 30 190 70 190 120 C 190 160 170 190 170 200 L 170 270 C 170 276 166 280 160 280 C 154 280 150 276 150 270 L 150 200 C 150 190 148 100 170 30 Z" />
+    
+    <!-- Fork (Left) -->
+    <path d="M 60 40 L 60 120 C 60 145 75 165 90 170 L 90 270 C 90 276 86 280 80 280 C 74 280 70 276 70 270 L 70 170 C 45 165 30 145 30 120 L 30 40 C 30 36 34 32 38 32 C 42 32 46 36 46 40 L 46 110 C 46 115 50 120 54 120 C 58 120 62 115 62 110 L 62 40 C 62 36 66 32 70 32 C 74 32 78 36 78 40 L 78 110 C 78 115 82 120 86 120 C 90 120 94 115 94 110 L 94 40 C 94 36 98 32 102 32 C 106 32 110 36 110 40 L 110 120 C 110 145 95 165 80 170 Z" />
+  </g>
+</svg>

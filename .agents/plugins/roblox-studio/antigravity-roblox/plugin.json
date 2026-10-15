@@ -1,0 +1,4 @@
+{
+  "name": "roblox-studio-linux",
+  "description": "Integração nativa do Roblox Studio no Linux para Antigravity via Universal Wine MCP Bridge, com execução segura de Luau, inspeção de DataModel e guardrails para agentes de IA."
+}
