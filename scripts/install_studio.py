@@ -10,12 +10,14 @@ import sys
 import json
 import urllib.request
 import zipfile
+import tarfile
 import io
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 CDN_BASE = "https://setup.rbxcdn.com"
 VERSION_API = "https://clientsettingscdn.roblox.com/v2/client-version/WindowsStudio64"
+DXVK_URL = "https://github.com/doitsujin/dxvk/releases/download/v3.1.1/dxvk-3.1.1.tar.gz"
 
 # Official package to subdirectory mapping inside Roblox Studio directory
 PACKAGE_DIRS = {
@@ -179,10 +181,26 @@ def main():
             dst.write(src.read())
         print(f"      dxvk.conf copied to version root.")
     
-    # Inject DXVK binaries if available
+    # Inject DXVK binaries (downloading automatically if not cached)
     dxvk_x64 = sandbox_dir / "dxvk" / "x64"
-    if not dxvk_x64.exists():
-        dxvk_x64 = data_dir / "dxvk" / "x64"
+    if not (dxvk_x64 / "d3d11.dll").exists():
+        if (data_dir / "dxvk" / "x64" / "d3d11.dll").exists():
+            dxvk_x64 = data_dir / "dxvk" / "x64"
+        else:
+            print(f"      Downloading DXVK v3.1.1 from {DXVK_URL}...")
+            req = urllib.request.Request(DXVK_URL, headers={"User-Agent": "Cutlery/Linux"})
+            with urllib.request.urlopen(req) as resp:
+                tar_bytes = resp.read()
+            dxvk_x64.mkdir(parents=True, exist_ok=True)
+            with tarfile.open(fileobj=io.BytesIO(tar_bytes), mode="r:gz") as tar:
+                for member in tar.getmembers():
+                    if "/x64/" in member.name and member.isfile():
+                        dll_filename = Path(member.name).name
+                        f_obj = tar.extractfile(member)
+                        if f_obj:
+                            with open(dxvk_x64 / dll_filename, "wb") as out_f:
+                                out_f.write(f_obj.read())
+
     if dxvk_x64.exists():
         for dll_name in ["d3d11.dll", "dxgi.dll"]:
             dll_src = dxvk_x64 / dll_name

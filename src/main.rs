@@ -84,6 +84,48 @@ fn find_studio_exe(prefix: &Path) -> Option<PathBuf> {
     None
 }
 
+fn ensure_dxvk(sandbox: &Path, data_dir: &Path) -> PathBuf {
+    let sandbox_dxvk = sandbox.join("dxvk").join("x64");
+    let data_dxvk = data_dir.join("dxvk").join("x64");
+
+    if sandbox_dxvk.join("d3d11.dll").exists() {
+        return sandbox_dxvk;
+    }
+    if data_dxvk.join("d3d11.dll").exists() {
+        return data_dxvk;
+    }
+
+    println!("[Cutlery] DXVK not found locally. Downloading DXVK v3.1.1 (with dummy composition swapchain support)...");
+    let dxvk_root = sandbox.join("dxvk");
+    let _ = fs::create_dir_all(&dxvk_root);
+    let tarball = sandbox.join("dxvk-3.1.1.tar.gz");
+    let url = "https://github.com/doitsujin/dxvk/releases/download/v3.1.1/dxvk-3.1.1.tar.gz";
+
+    let curl_status = Command::new("curl")
+        .args(["-fSL", url, "-o", &tarball.to_string_lossy()])
+        .status();
+
+    if let Ok(status) = curl_status {
+        if status.success() {
+            let _ = Command::new("tar")
+                .args([
+                    "-xzf",
+                    &tarball.to_string_lossy(),
+                    "-C",
+                    &dxvk_root.to_string_lossy(),
+                    "--strip-components=1",
+                ])
+                .status();
+            let _ = fs::remove_file(&tarball);
+            if sandbox_dxvk.join("d3d11.dll").exists() {
+                println!("[Cutlery] DXVK v3.1.1 downloaded and extracted successfully.");
+            }
+        }
+    }
+
+    sandbox_dxvk
+}
+
 fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
     let root = get_root_dir();
     let data_dir = root.join("data");
@@ -114,13 +156,9 @@ fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
         let _ = fs::write(&app_settings, xml);
     }
 
-    // 2. Sync DXVK dlls and config
-    let dxvk_x64 = if sandbox.join("dxvk").join("x64").exists() {
-        sandbox.join("dxvk").join("x64")
-    } else {
-        data_dir.join("dxvk").join("x64")
-    };
-    if dxvk_x64.exists() {
+    // 2. Sync DXVK dlls and config (auto-downloads DXVK v3.1.1 if missing on fresh clones)
+    let dxvk_x64 = ensure_dxvk(&sandbox, &data_dir);
+    if dxvk_x64.join("d3d11.dll").exists() {
         let _ = fs::copy(dxvk_x64.join("d3d11.dll"), studio_dir.join("d3d11.dll"));
         let _ = fs::copy(dxvk_x64.join("dxgi.dll"), studio_dir.join("dxgi.dll"));
     }
@@ -160,7 +198,7 @@ fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
             .status();
     }
 
-    // 5. Setup Wine & Docking Fix Environment
+    // 5. Setup Wine & Universal X11 Docking Hook Environment
     let mut cmd = Command::new("wine");
     cmd.arg(&studio_exe);
     for arg in args {
@@ -170,33 +208,43 @@ fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
     cmd.env("WINEPREFIX", &prefix);
     cmd.env("WINEARCH", "win64");
 
-    // Docking fix via LD_PRELOAD
-    let wine_hook = if custom_libs.join("wine_hook.so").exists() {
+    // Universal Xlib Docking Hook via LD_PRELOAD (works with any Wine version & distro)
+    let hook_x64_dir = custom_libs.join("x86_64");
+    let hook_x86_dir = custom_libs.join("i386");
+    let wine_hook_fallback = if custom_libs.join("wine_hook.so").exists() {
         custom_libs.join("wine_hook.so")
     } else {
         sandbox.join("wine_hook.so")
     };
-    let custom_x11 = custom_libs.join("x86_64-unix").join("winex11.so");
-    if wine_hook.exists() && custom_x11.exists() {
-        cmd.env("WINEX11_OVERRIDE", &custom_x11);
+
+    if hook_x64_dir.join("wine_hook.so").exists() && hook_x86_dir.join("wine_hook.so").exists() {
+        let existing_ld = env::var("LD_LIBRARY_PATH").unwrap_or_default();
+        let ld_path = if existing_ld.is_empty() {
+            format!("{}:{}", hook_x64_dir.display(), hook_x86_dir.display())
+        } else {
+            format!("{}:{}:{}", hook_x64_dir.display(), hook_x86_dir.display(), existing_ld)
+        };
+        cmd.env("LD_LIBRARY_PATH", ld_path);
+
         let existing_preload = env::var("LD_PRELOAD").unwrap_or_default();
         let preload = if existing_preload.is_empty() {
-            wine_hook.to_string_lossy().to_string()
+            "wine_hook.so".to_string()
         } else {
-            format!("{}:{}", wine_hook.display(), existing_preload)
+            format!("wine_hook.so:{}", existing_preload)
         };
         cmd.env("LD_PRELOAD", preload);
-        cmd.env("WINEDLLPATH", format!("{}:/usr/lib/wine", custom_libs.display()));
-        cmd.env(
-            "LD_LIBRARY_PATH",
-            format!(
-                "{}:/usr/lib/wine/x86_64-unix:{}",
-                custom_libs.join("x86_64-unix").display(),
-                env::var("LD_LIBRARY_PATH").unwrap_or_default()
-            ),
-        );
         cmd.env("WINE_STUDIO_DOCKING_FIX", "1");
-        println!("[Cutlery] [Docking Fix] Patched WineX11 driver ACTIVE!");
+        println!("[Cutlery] [Docking Fix] Universal X11 Docking Hook ACTIVE!");
+    } else if wine_hook_fallback.exists() {
+        let existing_preload = env::var("LD_PRELOAD").unwrap_or_default();
+        let preload = if existing_preload.is_empty() {
+            wine_hook_fallback.to_string_lossy().to_string()
+        } else {
+            format!("{}:{}", wine_hook_fallback.display(), existing_preload)
+        };
+        cmd.env("LD_PRELOAD", preload);
+        cmd.env("WINE_STUDIO_DOCKING_FIX", "1");
+        println!("[Cutlery] [Docking Fix] Universal X11 Docking Hook ACTIVE!");
     }
 
     // Enforce X11 / Xwayland (avoids winewayland multi-surface docking crash)
@@ -418,26 +466,38 @@ fn cmd_doctor() {
         println!("Kernel NTSync:    [NOTICE] /dev/ntsync not found (falling back to standard futex/fsync)");
     }
 
-    // 3. Patched Driver
-    let winex11 = custom_libs.join("x86_64-unix").join("winex11.so");
-    let wine_hook = if custom_libs.join("wine_hook.so").exists() {
+    // 3. Universal X11 Docking Hook
+    let wine_hook = if custom_libs.join("x86_64").join("wine_hook.so").exists() {
+        custom_libs.join("x86_64").join("wine_hook.so")
+    } else if custom_libs.join("wine_hook.so").exists() {
         custom_libs.join("wine_hook.so")
     } else {
         sandbox.join("wine_hook.so")
     };
-    if winex11.exists() && wine_hook.exists() {
-        println!("Docking Fix Hook: [OK] winex11.so and wine_hook.so compiled");
+    if wine_hook.exists() {
+        println!("Docking Fix Hook: [OK] Universal X11 hook ready ({})", wine_hook.display());
     } else {
-        println!("Docking Fix Hook: [FAILED] Patch binaries missing!");
+        println!("Docking Fix Hook: [FAILED] wine_hook.so missing!");
     }
 
-    // 4. Studio Executable
+    // 4. DXVK Vulkan Renderer
+    let dxvk_dll = sandbox.join("dxvk").join("x64").join("d3d11.dll");
+    let studio_dxvk = find_studio_exe(&prefix)
+        .and_then(|e| e.parent().map(|p| p.join("d3d11.dll")))
+        .map_or(false, |p| p.exists());
+    if dxvk_dll.exists() || studio_dxvk {
+        println!("DXVK Vulkan:      [OK] DXVK v3.1.1 d3d11.dll & dxgi.dll active");
+    } else {
+        println!("DXVK Vulkan:      [NOTICE] Not cached yet (will auto-download on 'cutlery run')");
+    }
+
+    // 5. Studio Executable
     match find_studio_exe(&prefix) {
         Some(exe) => println!("Roblox Studio:    [OK] {}", exe.display()),
         None => println!("Roblox Studio:    [FAILED] Not installed in prefix."),
     }
 
-    // 5. MCP Bridge
+    // 6. MCP Bridge
     let bridge = root.join("mcp").join("bridge.py");
     if bridge.exists() {
         println!("Universal MCP:    [OK] {}", bridge.display());
