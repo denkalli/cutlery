@@ -1,6 +1,5 @@
 # Build artifacts
 /target/
-bin/cutlery
 
 # Local testbed and Wine runtime data
 /sandbox/
