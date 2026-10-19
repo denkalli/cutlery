@@ -1,6 +1,7 @@
 # Build artifacts
 /target/
 /bin/
+/dist/
 
 # Local testbed and Wine runtime data
 /sandbox/

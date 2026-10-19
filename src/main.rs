@@ -599,6 +599,9 @@ fn main() {
         "help" | "--help" | "-h" => {
             print_help();
         }
+        "version" | "--version" | "-v" => {
+            println!("Cutlery v{}", env!("CARGO_PKG_VERSION"));
+        }
         unknown => {
             // If unknown argument starts with roblox-studio: (URI launch from browser) or a file path
             if unknown.starts_with("roblox-studio:") || unknown.ends_with(".rbxl") || unknown.ends_with(".rbxlx") {
