@@ -24,24 +24,45 @@ DEFAULT_PREFIX = os.path.join(REPO_ROOT, "sandbox", "prefix")
 
 
 def find_studio_mcp(prefix_path: str) -> str:
-    """Finds the most recent StudioMCP.exe inside the Wine prefix."""
-    versions_pattern = os.path.join(
-        prefix_path,
-        "drive_c",
-        "users",
-        "*",
-        "AppData",
-        "Local",
-        "Roblox",
-        "Versions",
-        "version-*",
-        "StudioMCP.exe",
-    )
-    candidates = glob.glob(versions_pattern)
-    if not candidates:
-        # Fallback: broad search inside prefix
-        broad_pattern = os.path.join(prefix_path, "drive_c", "**", "StudioMCP.exe")
-        candidates = glob.glob(broad_pattern, recursive=True)
+    """Finds the most recent StudioMCP.exe inside official Roblox paths in the Wine prefix."""
+    patterns = [
+        # Standard user AppData Versions
+        os.path.join(
+            prefix_path,
+            "drive_c",
+            "users",
+            "*",
+            "AppData",
+            "Local",
+            "Roblox",
+            "Versions",
+            "version-*",
+            "StudioMCP.exe",
+        ),
+        # Program Files (x86) Roblox
+        os.path.join(
+            prefix_path,
+            "drive_c",
+            "Program Files (x86)",
+            "Roblox",
+            "Versions",
+            "version-*",
+            "StudioMCP.exe",
+        ),
+        # Program Files Roblox
+        os.path.join(
+            prefix_path,
+            "drive_c",
+            "Program Files",
+            "Roblox",
+            "Versions",
+            "version-*",
+            "StudioMCP.exe",
+        ),
+    ]
+    candidates = []
+    for pattern in patterns:
+        candidates.extend(glob.glob(pattern))
 
     if not candidates:
         return ""

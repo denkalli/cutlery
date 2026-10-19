@@ -8,6 +8,8 @@ by fetching packages directly from Roblox CDN and extracting them deterministica
 import os
 import sys
 import json
+import hashlib
+import getpass
 import urllib.request
 import zipfile
 import tarfile
@@ -18,6 +20,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 CDN_BASE = "https://setup.rbxcdn.com"
 VERSION_API = "https://clientsettingscdn.roblox.com/v2/client-version/WindowsStudio64"
 DXVK_URL = "https://github.com/doitsujin/dxvk/releases/download/v3.1.1/dxvk-3.1.1.tar.gz"
+DXVK_SHA256 = "40565b4a724aadc4433fa4e010b4b23916d9b1f1baeee64e17186db94f54e608"
+HTTP_TIMEOUT = 30
 
 # Official package to subdirectory mapping inside Roblox Studio directory
 PACKAGE_DIRS = {
@@ -60,7 +64,7 @@ PACKAGE_DIRS = {
 def get_latest_version():
     print("[1/5] Checking latest Roblox Studio version...")
     req = urllib.request.Request(VERSION_API, headers={"User-Agent": "Roblox/Linux"})
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as resp:
         data = json.loads(resp.read().decode())
     version_guid = data.get("clientVersionUpload")
     version_id = data.get("version")
@@ -71,7 +75,7 @@ def fetch_manifest(version_guid):
     manifest_url = f"{CDN_BASE}/{version_guid}-rbxPkgManifest.txt"
     print(f"[2/5] Fetching package manifest: {manifest_url}")
     req = urllib.request.Request(manifest_url, headers={"User-Agent": "Roblox/Linux"})
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as resp:
         content = resp.read().decode("utf-8")
     
     lines = [line.strip() for line in content.splitlines() if line.strip()]
@@ -88,24 +92,46 @@ def fetch_manifest(version_guid):
     print(f"      {len(packages)} packages listed in manifest.")
     return packages
 
-def download_and_extract_package(pkg_name, version_guid, target_base_dir):
+def download_and_extract_package(pkg_name, expected_checksum, expected_size, version_guid, target_base_dir):
     rel_dest = PACKAGE_DIRS.get(pkg_name, "")
-    dest_dir = target_base_dir / rel_dest
+    dest_dir = (target_base_dir / rel_dest).resolve()
     dest_dir.mkdir(parents=True, exist_ok=True)
     
     pkg_url = f"{CDN_BASE}/{version_guid}-{pkg_name}"
     req = urllib.request.Request(pkg_url, headers={"User-Agent": "Roblox/Linux"})
     
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as resp:
         zip_data = resp.read()
     
+    # 1. Integrity check: Byte size
+    if expected_size and len(zip_data) != expected_size:
+        raise ValueError(
+            f"Integrity check failed for {pkg_name}: size mismatch (got {len(zip_data)}, expected {expected_size})"
+        )
+    
+    # 2. Integrity check: MD5 Checksum
+    if expected_checksum:
+        actual_md5 = hashlib.md5(zip_data).hexdigest()
+        if actual_md5.lower() != expected_checksum.lower():
+            raise ValueError(
+                f"Integrity check failed for {pkg_name}: MD5 mismatch (got {actual_md5}, expected {expected_checksum})"
+            )
+    
+    # 3. Zip extraction with Zip Slip path traversal protection
     with zipfile.ZipFile(io.BytesIO(zip_data)) as z:
         for member in z.infolist():
             clean_filename = member.filename.replace("\\", "/").lstrip("/")
             if not clean_filename or clean_filename.endswith("/"):
                 continue
             
-            target_path = dest_dir / clean_filename
+            target_path = (dest_dir / clean_filename).resolve()
+            try:
+                target_path.relative_to(dest_dir)
+            except ValueError:
+                raise ValueError(
+                    f"Security violation: Zip Slip path traversal detected in '{pkg_name}' for entry '{member.filename}'"
+                )
+            
             target_path.parent.mkdir(parents=True, exist_ok=True)
             
             with z.open(member) as src_file, open(target_path, "wb") as dst_file:
@@ -126,10 +152,17 @@ def main():
         print("Error: WINEPREFIX not initialized yet. Please run wineboot -u first.")
         sys.exit(1)
     
-    current_user = os.environ.get("USER", "kalli")
+    current_user = os.environ.get("USER") or getpass.getuser()
+    if not (users_dir / current_user).exists():
+        candidates = [
+            u for u in users_dir.iterdir()
+            if u.is_dir() and u.name not in ("Public", "Default", "default", "All Users")
+        ]
+        if candidates:
+            current_user = candidates[0].name
+    
     user_appdata = users_dir / current_user / "AppData" / "Local" / "Roblox" / "Versions"
-    if not user_appdata.exists():
-        user_appdata.mkdir(parents=True, exist_ok=True)
+    user_appdata.mkdir(parents=True, exist_ok=True)
     
     version_guid, version_id = get_latest_version()
     version_dir = user_appdata / version_guid
@@ -137,11 +170,18 @@ def main():
     
     packages = fetch_manifest(version_guid)
     
-    print(f"[3/5] Downloading and extracting {len(packages)} packages in parallel...")
+    print(f"[3/5] Downloading, verifying integrity, and extracting {len(packages)} packages in parallel...")
     completed = 0
     with ThreadPoolExecutor(max_workers=8) as executor:
         futures = {
-            executor.submit(download_and_extract_package, pkg[0], version_guid, version_dir): pkg[0]
+            executor.submit(
+                download_and_extract_package,
+                pkg[0],
+                pkg[1],
+                pkg[2],
+                version_guid,
+                version_dir,
+            ): pkg[0]
             for pkg in packages
         }
         for future in as_completed(futures):
@@ -181,7 +221,7 @@ def main():
             dst.write(src.read())
         print(f"      dxvk.conf copied to version root.")
     
-    # Inject DXVK binaries (downloading automatically if not cached)
+    # Inject DXVK binaries (downloading automatically with SHA256 integrity check if not cached)
     dxvk_x64 = sandbox_dir / "dxvk" / "x64"
     if not (dxvk_x64 / "d3d11.dll").exists():
         if (data_dir / "dxvk" / "x64" / "d3d11.dll").exists():
@@ -189,8 +229,15 @@ def main():
         else:
             print(f"      Downloading DXVK v3.1.1 from {DXVK_URL}...")
             req = urllib.request.Request(DXVK_URL, headers={"User-Agent": "Cutlery/Linux"})
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as resp:
                 tar_bytes = resp.read()
+            
+            actual_dxvk_sha256 = hashlib.sha256(tar_bytes).hexdigest()
+            if actual_dxvk_sha256.lower() != DXVK_SHA256.lower():
+                raise ValueError(
+                    f"Integrity check failed: DXVK tarball SHA256 mismatch (got {actual_dxvk_sha256}, expected {DXVK_SHA256})"
+                )
+            
             dxvk_x64.mkdir(parents=True, exist_ok=True)
             with tarfile.open(fileobj=io.BytesIO(tar_bytes), mode="r:gz") as tar:
                 for member in tar.getmembers():

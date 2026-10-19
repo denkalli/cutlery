@@ -42,17 +42,23 @@ fn get_root_dir() -> PathBuf {
         }
     }
 
-    // 3. Fallback to current working directory
-    let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    if cwd.join("Cargo.toml").exists()
-        || cwd.join("data").exists()
-        || cwd.join("sandbox").exists()
-    {
-        return cwd;
+    // 3. Fallback to standard user XDG data directory ~/.local/share/cutlery
+    if let Ok(home) = env::var("HOME") {
+        let user_share = PathBuf::from(home).join(".local").join("share").join("cutlery");
+        if user_share.exists() {
+            return user_share;
+        }
     }
 
-    // Default project path fallback
-    PathBuf::from("/home/kalli/Documentos/Antigravity/VinegarFork")
+    // 4. Fallback to system data directory /usr/share/cutlery
+    let sys_share = PathBuf::from("/usr/share/cutlery");
+    if sys_share.exists() {
+        return sys_share;
+    }
+
+    // Default safe fallback: ~/.local/share/cutlery
+    let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".local").join("share").join("cutlery")
 }
 
 fn find_studio_exe(prefix: &Path) -> Option<PathBuf> {
@@ -84,6 +90,22 @@ fn find_studio_exe(prefix: &Path) -> Option<PathBuf> {
     None
 }
 
+const DXVK_SHA256: &str = "40565b4a724aadc4433fa4e010b4b23916d9b1f1baeee64e17186db94f54e608";
+
+fn escape_desktop_exec(arg: &str) -> String {
+    let mut escaped = String::with_capacity(arg.len() + 16);
+    for c in arg.chars() {
+        match c {
+            '\\' => escaped.push_str("\\\\"),
+            '"' => escaped.push_str("\\\""),
+            '$' => escaped.push_str("\\$"),
+            '%' => escaped.push_str("%%"),
+            _ => escaped.push(c),
+        }
+    }
+    escaped
+}
+
 fn ensure_dxvk(sandbox: &Path, data_dir: &Path) -> PathBuf {
     let sandbox_dxvk = sandbox.join("dxvk").join("x64");
     let data_dxvk = data_dir.join("dxvk").join("x64");
@@ -107,18 +129,33 @@ fn ensure_dxvk(sandbox: &Path, data_dir: &Path) -> PathBuf {
 
     if let Ok(status) = curl_status {
         if status.success() {
-            let _ = Command::new("tar")
+            let checksum_check = Command::new("sh")
                 .args([
-                    "-xzf",
-                    &tarball.to_string_lossy(),
-                    "-C",
-                    &dxvk_root.to_string_lossy(),
-                    "--strip-components=1",
+                    "-c",
+                    &format!("echo \"{}  {}\" | sha256sum -c --status", DXVK_SHA256, tarball.to_string_lossy())
                 ])
                 .status();
-            let _ = fs::remove_file(&tarball);
-            if sandbox_dxvk.join("d3d11.dll").exists() {
-                println!("[Cutlery] DXVK v3.1.1 downloaded and extracted successfully.");
+
+            match checksum_check {
+                Ok(chk) if chk.success() => {
+                    let _ = Command::new("tar")
+                        .args([
+                            "-xzf",
+                            &tarball.to_string_lossy(),
+                            "-C",
+                            &dxvk_root.to_string_lossy(),
+                            "--strip-components=1",
+                        ])
+                        .status();
+                    let _ = fs::remove_file(&tarball);
+                    if sandbox_dxvk.join("d3d11.dll").exists() {
+                        println!("[Cutlery] DXVK v3.1.1 downloaded, verified (SHA-256), and extracted successfully.");
+                    }
+                }
+                _ => {
+                    eprintln!("[Cutlery] ERROR: DXVK tarball SHA-256 integrity check failed! Aborting extraction.");
+                    let _ = fs::remove_file(&tarball);
+                }
             }
         }
     }
@@ -392,6 +429,7 @@ fn cmd_register_desktop() -> Result<(), std::io::Error> {
     // Resolve cutlery binary path
     let cutlery_bin = env::current_exe()
         .unwrap_or_else(|_| root.join("bin").join("cutlery"));
+    let escaped_bin = escape_desktop_exec(&cutlery_bin.to_string_lossy());
 
     let desktop_content = format!(
         "[Desktop Entry]\n\
@@ -404,7 +442,7 @@ fn cmd_register_desktop() -> Result<(), std::io::Error> {
          Categories=Development;IDE;Game;\n\
          MimeType=x-scheme-handler/roblox-studio;\n\
          StartupWMClass=robloxstudiobeta.exe\n",
-        cutlery_bin.display()
+        escaped_bin
     );
 
     let desktop_file = apps_dir.join("cutlery.desktop");

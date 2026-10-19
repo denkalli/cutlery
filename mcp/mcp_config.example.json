@@ -4,10 +4,10 @@
     "roblox-studio": {
       "command": "python3",
       "args": [
-        "/home/kalli/Documentos/Antigravity/VinegarFork/mcp/bridge.py"
+        "/path/to/Cutlery/mcp/bridge.py"
       ],
       "env": {
-        "WINEPREFIX": "/home/kalli/Documentos/Antigravity/VinegarFork/sandbox/prefix"
+        "WINEPREFIX": "/path/to/Cutlery/sandbox/prefix"
       }
     }
   }

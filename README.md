@@ -79,6 +79,7 @@ A lightweight, high-performance **Roblox Studio launcher for Linux**, featuring 
 2. Compile Cutlery (Rust binary):
    ```bash
    cargo build --release
+   mkdir -p bin
    cp target/release/cutlery bin/cutlery
    ```
 
