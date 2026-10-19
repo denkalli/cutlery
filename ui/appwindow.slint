@@ -46,16 +46,18 @@ component ActionButton inherits Rectangle {
     in property <bool> primary: false;
     in property <color> accent_color: #3b82f6;
     in property <bool> enabled: true;
+    in property <length> min_btn_width: 0px;
     callback clicked();
 
     background: !root.enabled ? #222228 : 
                 (root.primary ? 
                     (ta.pressed ? root.accent_color.darker(15%) : (ta.has-hover ? root.accent_color.brighter(10%) : root.accent_color)) :
                     (ta.pressed ? #202026 : (ta.has-hover ? #2e2e38 : #24242c)));
-    border-color: root.primary ? root.accent_color.brighter(15%) : #3a3a46;
+    border-color: root.primary ? transparent : #3a3a46;
     border-width: 1px;
     border-radius: 6px;
     height: 30px;
+    min-width: root.min_btn_width;
 
     ta := TouchArea {
         enabled: root.enabled;
@@ -1143,6 +1145,8 @@ export component AppWindow inherits Window {
             HorizontalLayout {
                 padding-left: 16px;
                 padding-right: 16px;
+                padding-top: 8px;
+                padding-bottom: 8px;
                 alignment: space-between;
 
                 // Status message
@@ -1153,25 +1157,31 @@ export component AppWindow inherits Window {
                         color: #9ca3af;
                         font-size: 12px;
                         font-weight: 500;
+                        vertical-alignment: center;
                     }
                 }
 
-                // Action buttons - Identical geometry, font, height, and padding
-                HorizontalLayout {
-                    spacing: 8px;
+                // Action buttons - Vertically centered, identical geometry, no highlight bleed
+                VerticalLayout {
                     alignment: center;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: center;
 
-                    ActionButton {
-                        text: "Save Settings";
-                        primary: false;
-                        clicked => { root.save_settings(); }
-                    }
+                        ActionButton {
+                            text: "Save Settings";
+                            primary: false;
+                            min_btn_width: 120px;
+                            clicked => { root.save_settings(); }
+                        }
 
-                    ActionButton {
-                        text: "Launch Studio";
-                        primary: true;
-                        accent_color: root.accent_color;
-                        clicked => { root.launch_studio(); }
+                        ActionButton {
+                            text: "Launch Studio";
+                            primary: true;
+                            accent_color: root.accent_color;
+                            min_btn_width: 120px;
+                            clicked => { root.launch_studio(); }
+                        }
                     }
                 }
             }
