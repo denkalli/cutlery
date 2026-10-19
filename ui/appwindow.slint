@@ -23,45 +23,58 @@ component PillBadge inherits Rectangle {
     border-radius: 6px;
     height: 24px;
 
-    HorizontalLayout {
-        padding-left: 8px;
-        padding-right: 8px;
+    VerticalLayout {
         alignment: center;
-        Text {
-            text: root.text;
-            color: root.badge_fg;
-            font-size: 11px;
-            font-weight: 600;
-            vertical-alignment: center;
+        HorizontalLayout {
+            padding-left: 8px;
+            padding-right: 8px;
+            alignment: center;
+            Text {
+                text: root.text;
+                color: root.badge_fg;
+                font-size: 11px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
         }
     }
 }
 
-component PrimaryButton inherits Rectangle {
+// Unified Action Button component for footer and primary actions
+component ActionButton inherits Rectangle {
     in property <string> text: "Button";
-    in property <color> btn_color: #3b82f6;
+    in property <bool> primary: false;
+    in property <color> accent_color: #3b82f6;
     in property <bool> enabled: true;
     callback clicked();
 
-    background: !root.enabled ? #27272e : (ta.pressed ? root.btn_color.darker(20%) : (ta.has-hover ? root.btn_color.brighter(15%) : root.btn_color));
-    border-radius: 8px;
-    height: 32px;
+    background: !root.enabled ? #222228 : 
+                (root.primary ? 
+                    (ta.pressed ? root.accent_color.darker(15%) : (ta.has-hover ? root.accent_color.brighter(10%) : root.accent_color)) :
+                    (ta.pressed ? #202026 : (ta.has-hover ? #2e2e38 : #24242c)));
+    border-color: root.primary ? root.accent_color.brighter(15%) : #3a3a46;
+    border-width: 1px;
+    border-radius: 6px;
+    height: 30px;
 
     ta := TouchArea {
         enabled: root.enabled;
         clicked => { root.clicked(); }
     }
 
-    HorizontalLayout {
-        padding-left: 16px;
-        padding-right: 16px;
+    VerticalLayout {
         alignment: center;
-        Text {
-            text: root.text;
-            color: root.enabled ? #ffffff : #6b7280;
-            font-size: 12px;
-            font-weight: 600;
-            vertical-alignment: center;
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 14px;
+            alignment: center;
+            Text {
+                text: root.text;
+                color: root.enabled ? #ffffff : #6b7280;
+                font-size: 12px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
         }
     }
 }
@@ -75,23 +88,26 @@ component SecondaryButton inherits Rectangle {
     background: root.active ? root.accent_color : (ta.pressed ? #24242b : (ta.has-hover ? #2a2a32 : #1e1e24));
     border-color: root.active ? root.accent_color : #32323a;
     border-width: 1px;
-    border-radius: 8px;
-    height: 30px;
+    border-radius: 6px;
+    height: 28px;
 
     ta := TouchArea {
         clicked => { root.clicked(); }
     }
 
-    HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
+    VerticalLayout {
         alignment: center;
-        Text {
-            text: root.text;
-            color: root.active ? #ffffff : (ta.has-hover ? #f3f4f6 : #cbd5e1);
-            font-size: 11px;
-            font-weight: root.active ? 600 : 500;
-            vertical-alignment: center;
+        HorizontalLayout {
+            padding-left: 12px;
+            padding-right: 12px;
+            alignment: center;
+            Text {
+                text: root.text;
+                color: root.active ? #ffffff : (ta.has-hover ? #f3f4f6 : #cbd5e1);
+                font-size: 11px;
+                font-weight: root.active ? 600 : 500;
+                vertical-alignment: center;
+            }
         }
     }
 }
@@ -102,37 +118,43 @@ component ColorChip inherits Rectangle {
     in property <bool> selected: false;
     callback clicked();
 
-    background: root.selected ? root.chip_color : (ta.has-hover ? #282830 : #1e1e24);
+    background: root.selected ? root.chip_color : (ta.has-hover ? #2a2a32 : #1e1e24);
     border-color: root.selected ? root.chip_color.brighter(20%) : #32323a;
     border-width: 1px;
-    border-radius: 8px;
-    height: 30px;
+    border-radius: 6px;
+    height: 28px;
 
     ta := TouchArea {
         clicked => { root.clicked(); }
     }
 
-    HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 12px;
-        spacing: 6px;
+    VerticalLayout {
         alignment: center;
+        HorizontalLayout {
+            padding-left: 10px;
+            padding-right: 12px;
+            spacing: 6px;
+            alignment: center;
 
-        Rectangle {
-            width: 10px;
-            height: 10px;
-            border-radius: 5px;
-            background: root.selected ? #ffffff : root.chip_color;
-            border-color: #ffffff.mix(#000000, 70%);
-            border-width: 1px;
-        }
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 4px;
+                    background: root.selected ? #ffffff : root.chip_color;
+                    border-color: #ffffff.mix(#000000, 70%);
+                    border-width: 1px;
+                }
+            }
 
-        Text {
-            text: root.label;
-            color: root.selected ? #ffffff : #cbd5e1;
-            font-size: 11px;
-            font-weight: root.selected ? 600 : 500;
-            vertical-alignment: center;
+            Text {
+                text: root.label;
+                color: root.selected ? #ffffff : #cbd5e1;
+                font-size: 11px;
+                font-weight: root.selected ? 600 : 500;
+                vertical-alignment: center;
+            }
         }
     }
 }
@@ -174,23 +196,26 @@ component TabButton inherits Rectangle {
     background: root.active ? root.accent_color : (ta.has-hover ? #282830 : transparent);
     border-color: root.active ? root.accent_color : transparent;
     border-width: 1px;
-    border-radius: 8px;
-    height: 32px;
+    border-radius: 6px;
+    height: 30px;
 
     ta := TouchArea {
         clicked => { root.clicked(); }
     }
 
-    HorizontalLayout {
-        padding-left: 16px;
-        padding-right: 16px;
+    VerticalLayout {
         alignment: center;
-        Text {
-            text: root.text;
-            color: root.active ? #ffffff : (ta.has-hover ? #f3f4f6 : #9ca3af);
-            font-size: 12px;
-            font-weight: root.active ? 600 : 500;
-            vertical-alignment: center;
+        HorizontalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            alignment: center;
+            Text {
+                text: root.text;
+                color: root.active ? #ffffff : (ta.has-hover ? #f3f4f6 : #9ca3af);
+                font-size: 12px;
+                font-weight: root.active ? 600 : 500;
+                vertical-alignment: center;
+            }
         }
     }
 }
@@ -212,6 +237,12 @@ export component AppWindow inherits Window {
     callback run_doctor();
     callback add_custom_flag(string, string);
     callback remove_custom_flag(string);
+
+    // MCP Callbacks
+    callback link_antigravity();
+    callback open_antigravity_folder();
+    callback configure_claude();
+    callback test_mcp();
 
     // Dynamic accent color
     in-out property <string> accent_name: "blue";
@@ -252,6 +283,13 @@ export component AppWindow inherits Window {
     in-out property <string> doc_hook: "OK";
     in-out property <string> doc_dxvk: "OK";
     in-out property <string> doc_prefix: "OK";
+
+    // MCP Integration properties
+    in-out property <string> antigravity_status: "Detected";
+    in-out property <string> antigravity_path: "/home/kalli/Documentos/Antigravity/VinegarFork/target/release/cutlery";
+    in-out property <bool> antigravity_linked: false;
+    in-out property <string> claude_status: "Not Configured";
+    in-out property <string> mcp_test_status: "Bridge Ready • StudioMCP.exe Handshake Ready";
 
     VerticalLayout {
         padding: 16px;
@@ -313,8 +351,8 @@ export component AppWindow inherits Window {
             background: #202025;
             border-color: #2e2e36;
             border-width: 1px;
-            border-radius: 12px;
-            height: 42px;
+            border-radius: 10px;
+            height: 40px;
 
             HorizontalLayout {
                 padding-left: 6px;
@@ -419,19 +457,16 @@ export component AppWindow inherits Window {
                         HorizontalLayout {
                             spacing: 8px;
                             alignment: start;
-                            SecondaryButton {
+                            ActionButton {
                                 text: "Check Studio Updates";
-                                accent_color: root.accent_color;
                                 clicked => { root.check_updates(); }
                             }
-                            SecondaryButton {
+                            ActionButton {
                                 text: "Open Prefix Directory";
-                                accent_color: root.accent_color;
                                 clicked => { root.open_prefix(); }
                             }
-                            SecondaryButton {
+                            ActionButton {
                                 text: "Re-provision Prefix";
-                                accent_color: root.accent_color;
                                 clicked => { root.check_updates(); }
                             }
                         }
@@ -782,9 +817,10 @@ export component AppWindow inherits Window {
                                 text <=> root.new_flag_value;
                                 horizontal-stretch: 2;
                             }
-                            PrimaryButton {
+                            ActionButton {
                                 text: "Add Flag";
-                                btn_color: root.accent_color;
+                                primary: true;
+                                accent_color: root.accent_color;
                                 enabled: root.new_flag_name != "" && root.new_flag_value != "";
                                 clicked => {
                                     root.add_custom_flag(root.new_flag_name, root.new_flag_value);
@@ -803,8 +839,8 @@ export component AppWindow inherits Window {
                                     background: #18181c;
                                     border-color: #2e2e36;
                                     border-width: 1px;
-                                    border-radius: 8px;
-                                    height: 34px;
+                                    border-radius: 6px;
+                                    height: 32px;
 
                                     HorizontalLayout {
                                         padding-left: 12px;
@@ -838,8 +874,8 @@ export component AppWindow inherits Window {
 
                                         Rectangle {
                                             width: 68px;
-                                            height: 24px;
-                                            border-radius: 6px;
+                                            height: 22px;
+                                            border-radius: 4px;
                                             background: ta_rm.has-hover ? #ef4444.mix(#18181c, 70%) : #25252b;
                                             border-color: ta_rm.has-hover ? #ef4444 : #35353e;
                                             border-width: 1px;
@@ -850,14 +886,17 @@ export component AppWindow inherits Window {
                                                 }
                                             }
 
-                                            HorizontalLayout {
+                                            VerticalLayout {
                                                 alignment: center;
-                                                Text {
-                                                    text: "Remove";
-                                                    color: ta_rm.has-hover ? #ffffff : #f87171;
-                                                    font-size: 11px;
-                                                    font-weight: 600;
-                                                    vertical-alignment: center;
+                                                HorizontalLayout {
+                                                    alignment: center;
+                                                    Text {
+                                                        text: "Remove";
+                                                        color: ta_rm.has-hover ? #ffffff : #f87171;
+                                                        font-size: 11px;
+                                                        font-weight: 600;
+                                                        vertical-alignment: center;
+                                                    }
                                                 }
                                             }
                                         }
@@ -871,7 +910,7 @@ export component AppWindow inherits Window {
                             background: #18181c;
                             border-color: #2e2e36;
                             border-width: 1px;
-                            border-radius: 8px;
+                            border-radius: 6px;
                             HorizontalLayout {
                                 alignment: center;
                                 Text {
@@ -886,10 +925,69 @@ export component AppWindow inherits Window {
                 }
             }
 
-            // Tab 4: Universal MCP
+            // Tab 4: Universal MCP (Refactored with 1-Click Antigravity & Agent Directing)
             if root.active_tab == 4: VerticalLayout {
                 spacing: 12px;
 
+                // Card 1: Antigravity Client Integration
+                Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 12px;
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text {
+                                text: "Google Antigravity Client Integration";
+                                color: root.accent_color;
+                                font-size: 14px;
+                                font-weight: 700;
+                            }
+                            PillBadge {
+                                text: root.antigravity_linked ? "Plugin Linked" : "Needs Linking";
+                                badge_bg: root.antigravity_linked ? #059669.mix(#000000, 80%) : #d97706.mix(#000000, 80%);
+                                badge_fg: root.antigravity_linked ? #34d399 : #fbbf24;
+                            }
+                        }
+                        Text {
+                            text: "Directly connects Roblox Studio MCP tools to your Antigravity assistant plugin at ~/.gemini/config/plugins/roblox-studio.";
+                            color: #9ca3af;
+                            font-size: 11px;
+                        }
+                        HorizontalLayout {
+                            spacing: 10px;
+                            alignment: start;
+                            ActionButton {
+                                text: "Link Antigravity Plugin";
+                                primary: true;
+                                accent_color: root.accent_color;
+                                clicked => { root.link_antigravity(); }
+                            }
+                            ActionButton {
+                                text: "Open Plugin Directory";
+                                clicked => { root.open_antigravity_folder(); }
+                            }
+                        }
+                        Rectangle {
+                            background: #18181c;
+                            border-color: #2e2e36;
+                            border-width: 1px;
+                            border-radius: 6px;
+                            height: 32px;
+                            VerticalLayout {
+                                alignment: center;
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    spacing: 8px;
+                                    Text { text: "Plugin Config Path:"; color: #9ca3af; font-size: 11px; font-weight: 600; }
+                                    Text { text: root.antigravity_path; color: #ffffff; font-size: 11px; }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Card 2: AI Agent Bridge & Handshake Guards
                 Card {
                     VerticalLayout {
                         padding: 14px;
@@ -913,25 +1011,48 @@ export component AppWindow inherits Window {
                     }
                 }
 
+                // Card 3: Other Clients (Claude, Cursor, Generic) & Bridge Probe
                 Card {
                     VerticalLayout {
                         padding: 14px;
-                        spacing: 10px;
-                        Text {
-                            text: "Connecting Clients";
-                            color: root.accent_color;
-                            font-size: 14px;
-                            font-weight: 700;
+                        spacing: 12px;
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text {
+                                text: "Other AI Clients & Verification Probe";
+                                color: root.accent_color;
+                                font-size: 14px;
+                                font-weight: 700;
+                            }
+                            ActionButton {
+                                text: "Test MCP Bridge";
+                                clicked => { root.test_mcp(); }
+                            }
                         }
-                        Text {
-                            text: "To connect an AI coding assistant, configure command: 'cutlery' with args: ['mcp'].";
-                            color: #cbd5e1;
-                            font-size: 12px;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+                            ActionButton {
+                                text: "Configure Claude Desktop";
+                                clicked => { root.configure_claude(); }
+                            }
                         }
-                        Text {
-                            text: "Antigravity plugin location: ~/.gemini/config/plugins/roblox-studio";
-                            color: #9ca3af;
-                            font-size: 11px;
+                        Rectangle {
+                            background: #18181c;
+                            border-color: #2e2e36;
+                            border-width: 1px;
+                            border-radius: 6px;
+                            height: 32px;
+                            VerticalLayout {
+                                alignment: center;
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    spacing: 8px;
+                                    Text { text: "Status:"; color: #9ca3af; font-size: 11px; font-weight: 600; }
+                                    Text { text: root.mcp_test_status; color: #34d399; font-size: 11px; font-weight: 600; }
+                                }
+                            }
                         }
                     }
                 }
@@ -953,9 +1074,8 @@ export component AppWindow inherits Window {
                                 font-size: 14px;
                                 font-weight: 700;
                             }
-                            SecondaryButton {
+                            ActionButton {
                                 text: "Run Diagnostics";
-                                accent_color: root.accent_color;
                                 clicked => { root.run_doctor(); }
                             }
                         }
@@ -1012,13 +1132,13 @@ export component AppWindow inherits Window {
             }
         }
 
-        // Persistent Footer
+        // Persistent Footer (Unified ActionButton components for perfect proportion)
         Rectangle {
             height: 48px;
             background: #202025;
             border-color: #2e2e36;
             border-width: 1px;
-            border-radius: 12px;
+            border-radius: 10px;
 
             HorizontalLayout {
                 padding-left: 16px;
@@ -1036,20 +1156,21 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                // Action buttons
+                // Action buttons - Identical geometry, font, height, and padding
                 HorizontalLayout {
-                    spacing: 10px;
+                    spacing: 8px;
                     alignment: center;
 
-                    SecondaryButton {
+                    ActionButton {
                         text: "Save Settings";
-                        accent_color: root.accent_color;
+                        primary: false;
                         clicked => { root.save_settings(); }
                     }
 
-                    PrimaryButton {
+                    ActionButton {
                         text: "Launch Studio";
-                        btn_color: root.accent_color;
+                        primary: true;
+                        accent_color: root.accent_color;
                         clicked => { root.launch_studio(); }
                     }
                 }

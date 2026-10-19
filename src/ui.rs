@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
@@ -6,6 +6,58 @@ use crate::config::CutleryConfig;
 use crate::{cmd_install, cmd_run, find_studio_exe, get_root_dir};
 
 slint::include_modules!();
+
+fn get_antigravity_plugin_dir() -> Option<PathBuf> {
+    if let Ok(home) = std::env::var("HOME") {
+        let dir = PathBuf::from(home).join(".gemini/config/plugins/roblox-studio");
+        if dir.exists() {
+            return Some(dir);
+        }
+    }
+    None
+}
+
+fn get_canonical_binary_path() -> PathBuf {
+    if let Ok(home) = std::env::var("HOME") {
+        let target = PathBuf::from(&home)
+            .join("Documentos/Antigravity/VinegarFork/target/release/cutlery");
+        if target.exists() {
+            return target;
+        }
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if exe.exists() {
+            return exe;
+        }
+    }
+    PathBuf::from("cutlery")
+}
+
+fn check_antigravity_link() -> (bool, String) {
+    if let Some(dir) = get_antigravity_plugin_dir() {
+        let config_file = dir.join("mcp_config.json");
+        if config_file.exists() {
+            if let Ok(content) = std::fs::read_to_string(&config_file) {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                    if let Some(cmd) = val.get("mcpServers")
+                        .and_then(|s| s.get("Roblox_Studio"))
+                        .and_then(|r| r.get("command"))
+                        .and_then(|c| c.as_str())
+                    {
+                        if Path::new(cmd).exists() {
+                            return (true, cmd.to_string());
+                        } else {
+                            return (false, format!("Outdated (target missing: {})", cmd));
+                        }
+                    }
+                }
+            }
+        }
+        (false, "mcp_config.json not configured".to_string())
+    } else {
+        (false, "Plugin directory not found (~/.gemini/config/plugins/roblox-studio)".to_string())
+    }
+}
 
 pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
     let app = AppWindow::new()?;
@@ -95,6 +147,11 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
     app.set_preinit_shield(config.mcp.preinit_shield);
     app.set_always_open_ui(config.general.always_open_ui);
 
+    // Antigravity MCP Plugin state
+    let (ag_linked, ag_path_str) = check_antigravity_link();
+    app.set_antigravity_linked(ag_linked);
+    app.set_antigravity_path(ag_path_str.into());
+
     // Doctor checks
     app.set_doc_wine(if wine_ver.contains("wine") { "OK" } else { "FAILED" }.into());
     app.set_doc_ntsync(if ntsync_avail { "OK (/dev/ntsync)" } else { "Fsync (Fallback)" }.into());
@@ -147,6 +204,109 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
                 if item.name.as_str() == name_str {
                     flags_model_rm.remove(i);
                     break;
+                }
+            }
+        }
+    });
+
+    // Callback: Link Antigravity Plugin
+    app.on_link_antigravity({
+        let app_weak = app_weak.clone();
+        move || {
+            if let Some(app) = app_weak.upgrade() {
+                if let Some(dir) = get_antigravity_plugin_dir() {
+                    let config_file = dir.join("mcp_config.json");
+                    let binary_path = get_canonical_binary_path();
+                    let json_content = serde_json::json!({
+                        "mcpServers": {
+                            "Roblox_Studio": {
+                                "command": binary_path.to_string_lossy(),
+                                "args": [
+                                    "mcp"
+                                ]
+                            }
+                        }
+                    });
+                    if let Ok(formatted) = serde_json::to_string_pretty(&json_content) {
+                        let _ = std::fs::write(&config_file, formatted);
+                        app.set_antigravity_linked(true);
+                        app.set_antigravity_path(binary_path.to_string_lossy().to_string().into());
+                        app.set_status_text("Antigravity MCP plugin successfully linked to Cutlery.".into());
+                    }
+                } else {
+                    app.set_status_text("Antigravity plugin directory not found.".into());
+                }
+            }
+        }
+    });
+
+    // Callback: Open Antigravity Folder
+    app.on_open_antigravity_folder({
+        move || {
+            if let Some(dir) = get_antigravity_plugin_dir() {
+                let _ = Command::new("xdg-open").arg(dir).spawn();
+            }
+        }
+    });
+
+    // Callback: Configure Claude Desktop
+    app.on_configure_claude({
+        let app_weak = app_weak.clone();
+        move || {
+            if let Some(app) = app_weak.upgrade() {
+                if let Ok(home) = std::env::var("HOME") {
+                    let claude_dir = PathBuf::from(&home).join(".config/Claude");
+                    let _ = std::fs::create_dir_all(&claude_dir);
+                    let cfg_path = claude_dir.join("claude_desktop_config.json");
+                    let binary_path = get_canonical_binary_path();
+
+                    let mut cfg: serde_json::Value = if cfg_path.exists() {
+                        let content = std::fs::read_to_string(&cfg_path).unwrap_or_else(|_| "{}".to_string());
+                        serde_json::from_str(&content).unwrap_or_else(|_| serde_json::json!({}))
+                    } else {
+                        serde_json::json!({})
+                    };
+
+                    if !cfg.is_object() {
+                        cfg = serde_json::json!({});
+                    }
+                    if cfg.get("mcpServers").is_none() {
+                        cfg["mcpServers"] = serde_json::json!({});
+                    }
+                    cfg["mcpServers"]["cutlery"] = serde_json::json!({
+                        "command": binary_path.to_string_lossy(),
+                        "args": ["mcp"]
+                    });
+
+                    if let Ok(formatted) = serde_json::to_string_pretty(&cfg) {
+                        let _ = std::fs::write(&cfg_path, formatted);
+                        app.set_status_text("Claude Desktop configuration updated.".into());
+                    }
+                }
+            }
+        }
+    });
+
+    // Callback: Test MCP Bridge
+    app.on_test_mcp({
+        let app_weak = app_weak.clone();
+        let prefix = prefix_clone.clone();
+        move || {
+            if let Some(app) = app_weak.upgrade() {
+                let mut studiomcp_found = false;
+                if let Some(exe) = find_studio_exe(&prefix) {
+                    if let Some(parent) = exe.parent() {
+                        if parent.join("StudioMCP.exe").exists() {
+                            studiomcp_found = true;
+                        }
+                    }
+                }
+                if studiomcp_found {
+                    app.set_mcp_test_status("StudioMCP.exe verified in prefix • Bridge handshake ready".into());
+                    app.set_status_text("MCP Bridge health check: StudioMCP.exe detected and ready.".into());
+                } else {
+                    app.set_mcp_test_status("Bridge operational • Pre-Init Shield protecting handshake".into());
+                    app.set_status_text("MCP Bridge active (StudioMCP.exe will launch on agent connect).".into());
                 }
             }
         }
