@@ -21,7 +21,7 @@ jobs:
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install -y libx11-dev gcc-multilib libx11-dev:i386
+          sudo apt-get install -y pkg-config libfontconfig1-dev libx11-dev libxkbcommon-dev libxkbcommon-x11-dev gcc-multilib libx11-dev:i386
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
