@@ -86,13 +86,14 @@ A lightweight, high-performance **Roblox Studio launcher for Linux**, featuring 
    cp target/release/cutlery ~/.local/bin/
    ```
 
-3. Install / Initialize Roblox Studio in the prefix:
+3. Launch Cutlery Control Center:
    ```bash
-   cutlery install
-   # Or using local build: ./target/release/cutlery install
+   cutlery
+   # Or using local build: ./target/release/cutlery
    ```
+   *Opens the modern Control Center GUI dashboard to configure Graphics, Kernel synchronization, FastFlags, and AI MCP integrations.*
 
-4. Launch Roblox Studio:
+4. Launch Roblox Studio directly:
    ```bash
    cutlery run
    # Or using local build: ./target/release/cutlery run
@@ -102,7 +103,7 @@ A lightweight, high-performance **Roblox Studio launcher for Linux**, featuring 
    ```bash
    cutlery register-desktop
    ```
-   *Browser links to open places or authenticate (`roblox-studio://`) will now launch through Cutlery.*
+   *Registers the application in your desktop launcher (opening the Control Center) and associates `roblox-studio://` browser URI links.*
 
 ---
 
@@ -137,7 +138,7 @@ Add the following to `~/.cursor/mcp.json`:
 ```
 
 ### Connecting Antigravity
-You can use the bundled Antigravity plugin:
+You can link the Antigravity plugin with 1-click in the **Universal MCP** dashboard tab, or configure it manually:
 
 1. Copy the plugin:
    ```bash
@@ -145,7 +146,7 @@ You can use the bundled Antigravity plugin:
    cp -r plugins/antigravity-roblox ~/.gemini/config/plugins/roblox-studio
    ```
 
-2. Verify that `plugins/antigravity-roblox/mcp_config.json` specifies `"command": "cutlery"`.
+2. In the Cutlery Control Center under **Universal MCP**, click **Link Antigravity Plugin** (or verify that `mcp_config.json` specifies `"command": "cutlery"`).
 
 ---
 
@@ -155,6 +156,7 @@ The `cutlery` command-line interface provides the following commands:
 
 | Command | Description |
 | :--- | :--- |
+| `cutlery [ui]` | Opens the Settings & Control Center GUI dashboard (default when invoked without arguments). |
 | `cutlery run [args...]` | Launches Roblox Studio with the docking fix, DXVK DirectComposition swapchains, and low-latency sync. |
 | `cutlery mcp [args...]` | Starts the Universal MCP Bridge on `stdio` for AI agent connectivity. |
 | `cutlery install` | Runs the automated Roblox Studio installer and provisions the Wine prefix. |
