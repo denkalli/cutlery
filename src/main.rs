@@ -3,7 +3,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 
-fn get_root_dir() -> PathBuf {
+pub mod config;
+pub mod ui;
+
+use config::CutleryConfig;
+
+pub(crate) fn get_root_dir() -> PathBuf {
     // 1. If CUTLERY_ROOT env var is set, use it
     if let Ok(root) = env::var("CUTLERY_ROOT") {
         return PathBuf::from(root);
@@ -61,7 +66,7 @@ fn get_root_dir() -> PathBuf {
     PathBuf::from(home).join(".local").join("share").join("cutlery")
 }
 
-fn find_studio_exe(prefix: &Path) -> Option<PathBuf> {
+pub(crate) fn find_studio_exe(prefix: &Path) -> Option<PathBuf> {
     let drive_c = prefix.join("drive_c");
     if !drive_c.exists() {
         return None;
@@ -163,11 +168,17 @@ fn ensure_dxvk(sandbox: &Path, data_dir: &Path) -> PathBuf {
     sandbox_dxvk
 }
 
-fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
+pub(crate) fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
     let root = get_root_dir();
+    let config = CutleryConfig::load();
+
     let data_dir = root.join("data");
     let sandbox = root.join("sandbox");
-    let prefix = sandbox.join("prefix");
+    let prefix = if !config.general.prefix_path.is_empty() {
+        PathBuf::from(&config.general.prefix_path)
+    } else {
+        sandbox.join("prefix")
+    };
     let custom_libs = root.join("custom-libs");
 
     println!("========================================================");
@@ -199,26 +210,9 @@ fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
         let _ = fs::copy(dxvk_x64.join("d3d11.dll"), studio_dir.join("d3d11.dll"));
         let _ = fs::copy(dxvk_x64.join("dxgi.dll"), studio_dir.join("dxgi.dll"));
     }
-    let dxvk_conf = if data_dir.join("dxvk.conf").exists() {
-        data_dir.join("dxvk.conf")
-    } else {
-        sandbox.join("dxvk.conf")
-    };
-    if dxvk_conf.exists() {
-        let _ = fs::copy(&dxvk_conf, studio_dir.join("dxvk.conf"));
-    }
 
-    // 3. Inject FastFlags
-    let flags_src = if data_dir.join("ClientAppSettings.json").exists() {
-        data_dir.join("ClientAppSettings.json")
-    } else {
-        sandbox.join("ClientAppSettings.json")
-    };
-    if flags_src.exists() {
-        let settings_dir = studio_dir.join("ClientSettings");
-        let _ = fs::create_dir_all(&settings_dir);
-        let _ = fs::copy(&flags_src, settings_dir.join("ClientAppSettings.json"));
-    }
+    // 3. Sync preferences from config to studio files
+    config.sync_studio_files(studio_dir);
 
     // 4. Ensure registry x11 driver
     let reg_file = if data_dir.join("x11_docking_fix.reg").exists() {
@@ -227,7 +221,7 @@ fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
         sandbox.join("x11_docking_fix.reg")
     };
     if reg_file.exists() {
-        let _ = Command::new("wine")
+        let _ = Command::new(&config.general.wine_binary)
             .arg("regedit")
             .arg(&reg_file)
             .env("WINEPREFIX", &prefix)
@@ -236,7 +230,7 @@ fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
     }
 
     // 5. Setup Wine & Universal X11 Docking Hook Environment
-    let mut cmd = Command::new("wine");
+    let mut cmd = Command::new(&config.general.wine_binary);
     cmd.arg(&studio_exe);
     for arg in args {
         cmd.arg(arg);
@@ -245,65 +239,80 @@ fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
     cmd.env("WINEPREFIX", &prefix);
     cmd.env("WINEARCH", "win64");
 
-    // Universal Xlib Docking Hook via LD_PRELOAD (works with any Wine version & distro)
-    let hook_x64_dir = custom_libs.join("x86_64");
-    let hook_x86_dir = custom_libs.join("i386");
-    let wine_hook_fallback = if custom_libs.join("wine_hook.so").exists() {
-        custom_libs.join("wine_hook.so")
-    } else {
-        sandbox.join("wine_hook.so")
-    };
+    // Universal Xlib Docking Hook via LD_PRELOAD
+    if config.kernel.docking_fix {
+        let hook_x64_dir = custom_libs.join("x86_64");
+        let hook_x86_dir = custom_libs.join("i386");
+        let wine_hook_fallback = if custom_libs.join("wine_hook.so").exists() {
+            custom_libs.join("wine_hook.so")
+        } else {
+            sandbox.join("wine_hook.so")
+        };
 
-    if hook_x64_dir.join("wine_hook.so").exists() && hook_x86_dir.join("wine_hook.so").exists() {
-        let existing_ld = env::var("LD_LIBRARY_PATH").unwrap_or_default();
-        let ld_path = if existing_ld.is_empty() {
-            format!("{}:{}", hook_x64_dir.display(), hook_x86_dir.display())
-        } else {
-            format!("{}:{}:{}", hook_x64_dir.display(), hook_x86_dir.display(), existing_ld)
-        };
-        cmd.env("LD_LIBRARY_PATH", ld_path);
+        if hook_x64_dir.join("wine_hook.so").exists() && hook_x86_dir.join("wine_hook.so").exists() {
+            let existing_ld = env::var("LD_LIBRARY_PATH").unwrap_or_default();
+            let ld_path = if existing_ld.is_empty() {
+                format!("{}:{}", hook_x64_dir.display(), hook_x86_dir.display())
+            } else {
+                format!("{}:{}:{}", hook_x64_dir.display(), hook_x86_dir.display(), existing_ld)
+            };
+            cmd.env("LD_LIBRARY_PATH", ld_path);
 
-        let existing_preload = env::var("LD_PRELOAD").unwrap_or_default();
-        let preload = if existing_preload.is_empty() {
-            "wine_hook.so".to_string()
-        } else {
-            format!("wine_hook.so:{}", existing_preload)
-        };
-        cmd.env("LD_PRELOAD", preload);
-        cmd.env("WINE_STUDIO_DOCKING_FIX", "1");
-        println!("[Cutlery] [Docking Fix] Universal X11 Docking Hook ACTIVE!");
-    } else if wine_hook_fallback.exists() {
-        let existing_preload = env::var("LD_PRELOAD").unwrap_or_default();
-        let preload = if existing_preload.is_empty() {
-            wine_hook_fallback.to_string_lossy().to_string()
-        } else {
-            format!("{}:{}", wine_hook_fallback.display(), existing_preload)
-        };
-        cmd.env("LD_PRELOAD", preload);
-        cmd.env("WINE_STUDIO_DOCKING_FIX", "1");
-        println!("[Cutlery] [Docking Fix] Universal X11 Docking Hook ACTIVE!");
+            let existing_preload = env::var("LD_PRELOAD").unwrap_or_default();
+            let preload = if existing_preload.is_empty() {
+                "wine_hook.so".to_string()
+            } else {
+                format!("wine_hook.so:{}", existing_preload)
+            };
+            cmd.env("LD_PRELOAD", preload);
+            cmd.env("WINE_STUDIO_DOCKING_FIX", "1");
+            println!("[Cutlery] [Docking Fix] Universal X11 Docking Hook ACTIVE!");
+        } else if wine_hook_fallback.exists() {
+            let existing_preload = env::var("LD_PRELOAD").unwrap_or_default();
+            let preload = if existing_preload.is_empty() {
+                wine_hook_fallback.to_string_lossy().to_string()
+            } else {
+                format!("{}:{}", wine_hook_fallback.display(), existing_preload)
+            };
+            cmd.env("LD_PRELOAD", preload);
+            cmd.env("WINE_STUDIO_DOCKING_FIX", "1");
+            println!("[Cutlery] [Docking Fix] Universal X11 Docking Hook ACTIVE!");
+        }
     }
 
-    // Enforce X11 / Xwayland (avoids winewayland multi-surface docking crash)
-    cmd.env("DISPLAY", env::var("DISPLAY").unwrap_or_else(|_| ":0".to_string()));
-    cmd.env_remove("WAYLAND_DISPLAY");
+    // Enforce X11 / Xwayland
+    if config.kernel.force_x11 {
+        cmd.env("DISPLAY", env::var("DISPLAY").unwrap_or_else(|_| ":0".to_string()));
+        cmd.env_remove("WAYLAND_DISPLAY");
+    }
 
     // NTSync / Fsync
-    cmd.env("WINEFSYNC", "1");
-    cmd.env("WINENTSYNC", "1");
-    if Path::new("/dev/ntsync").exists() {
-        println!("[Cutlery] /dev/ntsync detected! Kernel NTSync enabled for low-latency synchronization.");
+    if config.kernel.fsync {
+        cmd.env("WINEFSYNC", "1");
+    }
+    if config.kernel.ntsync {
+        cmd.env("WINENTSYNC", "1");
+        if Path::new("/dev/ntsync").exists() {
+            println!("[Cutlery] /dev/ntsync detected! Kernel NTSync enabled for low-latency synchronization.");
+        }
     }
 
     // DXVK
+    let dxvk_conf = studio_dir.join("dxvk.conf");
     cmd.env("DXVK_CONFIG_FILE", &dxvk_conf);
-    cmd.env("DXVK_CONFIG", "dxgi.enableDummyCompositionSwapchain=true");
+    if config.graphics.dummy_composition {
+        cmd.env("DXVK_CONFIG", "dxgi.enableDummyCompositionSwapchain=true");
+    }
     cmd.env("WINEDLLOVERRIDES", "winegstreamer=d;d3d11=n,b;dxgi=n,b");
     cmd.env("MIMALLOC_FORCE_REDIRECT", "1");
 
     // Qt Scaling
-    cmd.env("QT_AUTO_SCREEN_SCALE_FACTOR", "0");
-    cmd.env("QT_SCALE_FACTOR", "1");
+    if config.graphics.dpi_scale == "auto" {
+        cmd.env("QT_AUTO_SCREEN_SCALE_FACTOR", "1");
+    } else {
+        cmd.env("QT_AUTO_SCREEN_SCALE_FACTOR", "0");
+        cmd.env("QT_SCALE_FACTOR", &config.graphics.dpi_scale);
+    }
 
     println!("[Cutlery] Launching Roblox Studio: {}", studio_exe.display());
     println!("--------------------------------------------------------");
@@ -329,7 +338,7 @@ fn cmd_mcp(args: &[String]) -> Result<ExitStatus, std::io::Error> {
     cmd.status()
 }
 
-fn cmd_install() -> Result<ExitStatus, std::io::Error> {
+pub(crate) fn cmd_install() -> Result<ExitStatus, std::io::Error> {
     let root = get_root_dir();
     let install_sh = if root.join("scripts").join("install_studio.sh").exists() {
         root.join("scripts").join("install_studio.sh")
@@ -358,52 +367,26 @@ fn cmd_register_desktop() -> Result<(), std::io::Error> {
     fs::create_dir_all(&icons_base)?;
     fs::create_dir_all(&pixmaps_dir)?;
 
-    // Clean up stale previous launcher files that may conflict in KDE/GNOME
-    let _ = fs::remove_file(apps_dir.join("cutlery-studio.desktop"));
-    let _ = fs::remove_file(apps_dir.join("roblox-studio-fork.desktop"));
-    let _ = fs::remove_file(icons_base.join("scalable").join("apps").join("cutlery.svg"));
+    // 1. Copy multi-resolution icon assets
+    let sizes = ["16x16", "32x32", "48x48", "64x64", "128x128", "256x256"];
+    for size in sizes {
+        let src_icon = root.join("assets").join("icons").join(format!("cutlery-{}.png", size));
+        if src_icon.exists() {
+            let dest_hicolor = icons_base.join(size).join("apps");
+            let _ = fs::create_dir_all(&dest_hicolor);
+            let _ = fs::copy(&src_icon, dest_hicolor.join("cutlery.png"));
 
-    // Ensure hicolor has a valid index.theme (required by KDE KIconLoader)
-    let hicolor_index = icons_base.join("index.theme");
-    if !hicolor_index.exists() {
-        if Path::new("/usr/share/icons/hicolor/index.theme").exists() {
-            let _ = fs::copy("/usr/share/icons/hicolor/index.theme", &hicolor_index);
+            let theme_apps = icons_dir.join(size).join("apps");
+            let _ = fs::create_dir_all(&theme_apps);
+            let _ = fs::copy(&src_icon, theme_apps.join("cutlery.png"));
         }
     }
 
-    // 1. Copy multi-resolution icons to standard FreeDesktop hicolor directories
-    let icon_sizes = [
-        (512, root.join("assets").join("cutlery.png")),
-        (256, root.join("assets").join("icons").join("cutlery-256x256.png")),
-        (128, root.join("assets").join("icons").join("cutlery-128x128.png")),
-        (64,  root.join("assets").join("icons").join("cutlery-64x64.png")),
-        (48,  root.join("assets").join("icons").join("cutlery-48x48.png")),
-        (32,  root.join("assets").join("icons").join("cutlery-32x32.png")),
-        (16,  root.join("assets").join("icons").join("cutlery-16x16.png")),
-    ];
-
-    for (size, path) in &icon_sizes {
-        if path.exists() {
-            let target_dir = icons_base.join(format!("{}x{}", size, size)).join("apps");
-            let _ = fs::create_dir_all(&target_dir);
-            let _ = fs::copy(path, target_dir.join("cutlery.png"));
-        }
-    }
-
-    // 2. Also inject icons into any custom KDE/user icon themes in ~/.local/share/icons (e.g. BigSur, Whitesur)
+    // 2. Refresh icon caches
     if let Ok(entries) = fs::read_dir(&icons_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_dir() && path.file_name().map_or(false, |n| n != "hicolor") {
-                for (size, icon_src) in &icon_sizes {
-                    if icon_src.exists() {
-                        let theme_target = path.join(format!("{}x{}", size, size)).join("apps");
-                        if theme_target.exists() || path.join("index.theme").exists() {
-                            let _ = fs::create_dir_all(&theme_target);
-                            let _ = fs::copy(icon_src, theme_target.join("cutlery.png"));
-                        }
-                    }
-                }
+            if path.is_dir() {
                 let _ = Command::new("gtk-update-icon-cache")
                     .args(["-f", "-t", &path.to_string_lossy()])
                     .status();
@@ -428,20 +411,26 @@ fn cmd_register_desktop() -> Result<(), std::io::Error> {
 
     // Resolve cutlery binary path
     let cutlery_bin = env::current_exe()
-        .unwrap_or_else(|_| root.join("bin").join("cutlery"));
+        .unwrap_or_else(|_| root.join("target").join("release").join("cutlery"));
     let escaped_bin = escape_desktop_exec(&cutlery_bin.to_string_lossy());
 
+    // Exec opens the Settings UI by default from the app drawer/tray
     let desktop_content = format!(
         "[Desktop Entry]\n\
          Name=Cutlery\n\
-         Comment=Roblox Studio Launcher for Linux\n\
-         Exec=\"{}\" run %u\n\
+         Comment=Roblox Studio Launcher & Control Center for Linux\n\
+         Exec=\"{}\"\n\
          Icon=cutlery\n\
          Terminal=false\n\
          Type=Application\n\
          Categories=Development;IDE;Game;\n\
          MimeType=x-scheme-handler/roblox-studio;\n\
-         StartupWMClass=robloxstudiobeta.exe\n",
+         StartupWMClass=robloxstudiobeta.exe\n\
+         Actions=LaunchStudio;\n\n\
+         [Desktop Action LaunchStudio]\n\
+         Name=Launch Roblox Studio Directly\n\
+         Exec=\"{}\" run %u\n",
+        escaped_bin,
         escaped_bin
     );
 
@@ -467,10 +456,9 @@ fn cmd_register_desktop() -> Result<(), std::io::Error> {
 
     println!("[Cutlery] Desktop launcher, icons, and MIME protocol registered successfully!");
     println!("          Desktop File: {}", desktop_file.display());
-    println!("          Comment:      Roblox Studio Launcher for Linux");
-    println!("          Icons Copied: ~/.local/share/icons/ (hicolor & active user themes) and pixmaps");
+    println!("          Comment:      Roblox Studio Launcher & Control Center for Linux");
+    println!("          App Drawer:   Clicking Cutlery will now open the Control Center UI.");
     println!("          MIME Handler: x-scheme-handler/roblox-studio -> Cutlery");
-    println!("          (Browser links to open Studio or authenticate will now launch Cutlery!)");
 
     Ok(())
 }
@@ -550,11 +538,13 @@ fn print_help() {
     println!("Cutlery - Roblox Studio Launcher for Linux with Native Docking & AI MCP");
     println!("Usage: cutlery [command] [args...]\n");
     println!("Available commands:");
-    println!("  run [args...]          Launch Roblox Studio with native docking fixes and DXVK (default)");
+    println!("  ui, settings, config   Open the Settings & Pre-launch Control Center UI (default)");
+    println!("  run [args...]          Launch Roblox Studio with native docking fixes and DXVK");
     println!("  mcp [args...]          Run the Universal MCP Bridge (for Claude, Cursor, Antigravity, Codex)");
     println!("  install                Install or update Roblox Studio in the Wine prefix");
     println!("  register-desktop       Register desktop launcher and roblox-studio:// browser URI handler");
     println!("  doctor                 Verify system, Wine, driver, and prefix health");
+    println!("  version                Show version information");
     println!("  help                   Show this help message");
 }
 
@@ -563,10 +553,16 @@ fn main() {
     let command = if args.len() > 1 {
         args[1].as_str()
     } else {
-        "run"
+        "ui"
     };
 
     match command {
+        "ui" | "settings" | "config" => {
+            if let Err(e) = ui::launch_ui() {
+                eprintln!("[Cutlery] Failed to open Control Center UI: {}", e);
+                std::process::exit(1);
+            }
+        }
         "run" | "start" | "studio" => {
             let pass_args = if args.len() > 2 { &args[2..] } else { &[] };
             if let Err(e) = cmd_run(pass_args) {

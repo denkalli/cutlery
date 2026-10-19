@@ -1,0 +1,703 @@
+import { Button, Switch, ComboBox, LineEdit, ScrollView } from "std-widgets.slint";
+
+component Card inherits Rectangle {
+    background: #141a24;
+    border-color: #242f40;
+    border-width: 1px;
+    border-radius: 10px;
+}
+
+component PillBadge inherits Rectangle {
+    in property <string> text: "Active";
+    in property <color> badge_bg: #10b981.mix(#000000, 80%);
+    in property <color> badge_fg: #34d399;
+
+    background: root.badge_bg;
+    border-color: root.badge_fg.mix(#000000, 50%);
+    border-width: 1px;
+    border-radius: 12px;
+    height: 24px;
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: root.badge_fg;
+            font-size: 11px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component ToggleRow inherits HorizontalLayout {
+    in property <string> title: "Option Title";
+    in property <string> description: "Option Description";
+    in-out property <bool> checked <=> sw.checked;
+
+    spacing: 12px;
+    alignment: space-between;
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 2px;
+        Text {
+            text: root.title;
+            color: #f1f5f9;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        Text {
+            text: root.description;
+            color: #94a3b8;
+            font-size: 11px;
+        }
+    }
+
+    sw := Switch {
+    }
+}
+
+component TabButton inherits Rectangle {
+    in property <string> text: "Tab";
+    in property <bool> active: false;
+    callback clicked();
+
+    background: root.active ? #1e2638 : (ta.has-hover ? #171d2b : transparent);
+    border-color: root.active ? #6366f1 : transparent;
+    border-width: 1px;
+    border-radius: 8px;
+    height: 34px;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: root.active ? #ffffff : (ta.has-hover ? #cbd5e1 : #94a3b8);
+            font-size: 12px;
+            font-weight: root.active ? 600 : 500;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: "Cutlery Control Center";
+    icon: @image-url("../assets/cutlery.png");
+    preferred-width: 860px;
+    preferred-height: 620px;
+    min-width: 800px;
+    min-height: 580px;
+    background: #0c1017;
+
+    // Callbacks
+    callback launch_studio();
+    callback save_settings();
+    callback check_updates();
+    callback open_prefix();
+    callback run_doctor();
+
+    // Bound properties
+    in-out property <int> active_tab: 0;
+    in-out property <string> status_text: "System ready • Roblox Studio detected • DXVK v3.1.1 active";
+    in-out property <string> studio_version: "RobloxStudioBeta (Installed)";
+    in-out property <string> wine_version: "wine-11.x (x86_64)";
+    in-out property <string> prefix_path: "~/.local/share/cutlery/prefix";
+    in-out property <bool> ntsync_available: true;
+
+    // Config properties
+    in-out property <int> target_fps: 60;
+    in-out property <bool> dummy_composition: true;
+    in-out property <bool> dxvk_async: true;
+    in-out property <string> dpi_scale: "1.0";
+    in-out property <bool> ntsync_enabled: true;
+    in-out property <bool> fsync_enabled: true;
+    in-out property <bool> docking_fix: true;
+    in-out property <bool> force_x11: true;
+    in-out property <bool> telemetry_bypass: true;
+    in-out property <bool> gpu_light_culling: true;
+    in-out property <string> fastflags_preset: "default";
+    in-out property <bool> mcp_enabled: true;
+    in-out property <bool> preinit_shield: true;
+    in-out property <bool> always_open_ui: true;
+
+    // Doctor properties
+    in-out property <string> doc_wine: "OK";
+    in-out property <string> doc_ntsync: "OK";
+    in-out property <string> doc_hook: "OK";
+    in-out property <string> doc_dxvk: "OK";
+    in-out property <string> doc_prefix: "OK";
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        // Header
+        HorizontalLayout {
+            height: 40px;
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 12px;
+                alignment: center;
+                Image {
+                    source: @image-url("../assets/cutlery.png");
+                    width: 32px;
+                    height: 32px;
+                }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 0px;
+                    Text {
+                        text: "Cutlery Control Center";
+                        color: #ffffff;
+                        font-size: 16px;
+                        font-weight: 700;
+                    }
+                    Text {
+                        text: "Roblox Studio Linux Pre-Launch & Performance Optimizer";
+                        color: #64748b;
+                        font-size: 10px;
+                    }
+                }
+                PillBadge {
+                    text: "v1.0.0";
+                    badge_bg: #6366f1.mix(#000000, 80%);
+                    badge_fg: #818cf8;
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: center;
+                PillBadge {
+                    text: root.ntsync_available ? "NTSync: Active" : "Fsync: Active";
+                    badge_bg: #0284c7.mix(#000000, 80%);
+                    badge_fg: #38bdf8;
+                }
+                PillBadge {
+                    text: "● Studio Ready";
+                    badge_bg: #059669.mix(#000000, 80%);
+                    badge_fg: #34d399;
+                }
+            }
+        }
+
+        // Top Navigation Bar (Simplified clean tab names per user feedback)
+        Rectangle {
+            background: #111622;
+            border-color: #1e2638;
+            border-width: 1px;
+            border-radius: 10px;
+            height: 44px;
+
+            HorizontalLayout {
+                padding-left: 6px;
+                padding-right: 6px;
+                padding-top: 4px;
+                padding-bottom: 4px;
+                spacing: 6px;
+
+                TabButton {
+                    text: "General";
+                    active: root.active_tab == 0;
+                    clicked => { root.active_tab = 0; }
+                }
+                TabButton {
+                    text: "Graphics";
+                    active: root.active_tab == 1;
+                    clicked => { root.active_tab = 1; }
+                }
+                TabButton {
+                    text: "Kernel";
+                    active: root.active_tab == 2;
+                    clicked => { root.active_tab = 2; }
+                }
+                TabButton {
+                    text: "FastFlags";
+                    active: root.active_tab == 3;
+                    clicked => { root.active_tab = 3; }
+                }
+                TabButton {
+                    text: "Universal MCP";
+                    active: root.active_tab == 4;
+                    clicked => { root.active_tab = 4; }
+                }
+                TabButton {
+                    text: "Doctor";
+                    active: root.active_tab == 5;
+                    clicked => {
+                        root.active_tab = 5;
+                        root.run_doctor();
+                    }
+                }
+            }
+        }
+
+        // Main Tab Content Area
+        Rectangle {
+            vertical-stretch: 1;
+            background: transparent;
+
+            // Tab 0: General
+            if root.active_tab == 0: VerticalLayout {
+                spacing: 12px;
+
+                Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 10px;
+                        Text {
+                            text: "Environment Status";
+                            color: #38bdf8;
+                            font-size: 13px;
+                            font-weight: 700;
+                        }
+                        HorizontalLayout {
+                            spacing: 10px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "Studio Version:"; color: #94a3b8; font-size: 11px; }
+                                Text { text: root.studio_version; color: #f8fafc; font-size: 12px; font-weight: 600; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "System Wine:"; color: #94a3b8; font-size: 11px; }
+                                Text { text: root.wine_version; color: #f8fafc; font-size: 12px; font-weight: 600; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "Wine Prefix Path:"; color: #94a3b8; font-size: 11px; }
+                                Text { text: root.prefix_path; color: #f8fafc; font-size: 12px; font-weight: 600; }
+                            }
+                        }
+                    }
+                }
+
+                Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 12px;
+                        Text {
+                            text: "Quick Management Actions";
+                            color: #38bdf8;
+                            font-size: 13px;
+                            font-weight: 700;
+                        }
+                        HorizontalLayout {
+                            spacing: 10px;
+                            Button {
+                                text: "🔄 Check Studio Updates";
+                                clicked => { root.check_updates(); }
+                            }
+                            Button {
+                                text: "📁 Open Wine Prefix Directory";
+                                clicked => { root.open_prefix(); }
+                            }
+                            Button {
+                                text: "🛠️ Re-provision Wine Prefix";
+                                clicked => { root.check_updates(); }
+                            }
+                        }
+                    }
+                }
+
+                Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 12px;
+                        Text {
+                            text: "Launcher Behavior";
+                            color: #38bdf8;
+                            font-size: 13px;
+                            font-weight: 700;
+                        }
+                        ToggleRow {
+                            title: "Open Cutlery Settings on launch";
+                            description: "Opening Cutlery from the desktop app drawer opens this dashboard instead of launching directly.";
+                            checked <=> root.always_open_ui;
+                        }
+                    }
+                }
+            }
+
+            // Tab 1: Graphics
+            if root.active_tab == 1: VerticalLayout {
+                spacing: 12px;
+
+                Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 14px;
+                        Text {
+                            text: "DXVK Vulkan Renderer & Swapchain";
+                            color: #38bdf8;
+                            font-size: 13px;
+                            font-weight: 700;
+                        }
+                        ToggleRow {
+                            title: "DirectComposition Dummy Swapchain";
+                            description: "Enables DXVK composition swapchain emulation so QtitanDocking multi-window guide markers render safely.";
+                            checked <=> root.dummy_composition;
+                        }
+                        ToggleRow {
+                            title: "DXVK Asynchronous Shader Pipelines";
+                            description: "Compiles Vulkan pipelines in background threads to eliminate viewport stutter during Studio navigation.";
+                            checked <=> root.dxvk_async;
+                        }
+                    }
+                }
+
+                Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 14px;
+                        Text {
+                            text: "Display & Framerate";
+                            color: #38bdf8;
+                            font-size: 13px;
+                            font-weight: 700;
+                        }
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "Target Viewport Framerate"; color: #f1f5f9; font-size: 13px; font-weight: 600; }
+                                Text { text: "Controls Roblox TaskScheduler FPS cap (DFIntTaskSchedulerTargetFps)"; color: #94a3b8; font-size: 11px; }
+                            }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                alignment: center;
+                                Button {
+                                    text: "60 FPS";
+                                    primary: root.target_fps == 60;
+                                    clicked => { root.target_fps = 60; }
+                                }
+                                Button {
+                                    text: "120 FPS";
+                                    primary: root.target_fps == 120;
+                                    clicked => { root.target_fps = 120; }
+                                }
+                                Button {
+                                    text: "144 FPS";
+                                    primary: root.target_fps == 144;
+                                    clicked => { root.target_fps = 144; }
+                                }
+                                Button {
+                                    text: "240 FPS";
+                                    primary: root.target_fps == 240;
+                                    clicked => { root.target_fps = 240; }
+                                }
+                                Button {
+                                    text: "Unlimited";
+                                    primary: root.target_fps == 0;
+                                    clicked => { root.target_fps = 0; }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Tab 2: Kernel
+            if root.active_tab == 2: VerticalLayout {
+                spacing: 12px;
+
+                Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 14px;
+                        Text {
+                            text: "Linux Kernel Synchronization Engine";
+                            color: #38bdf8;
+                            font-size: 13px;
+                            font-weight: 700;
+                        }
+                        ToggleRow {
+                            title: "Kernel NTSync Synchronization (/dev/ntsync)";
+                            description: "Enables in-kernel NT synchronization primitives for maximum multithreaded performance and minimal CPU overhead.";
+                            checked <=> root.ntsync_enabled;
+                        }
+                        ToggleRow {
+                            title: "Wine Fsync (futex2 synchronization)";
+                            description: "Enables fast user-space mutexes as a fallback when NTSync is unavailable.";
+                            checked <=> root.fsync_enabled;
+                        }
+                    }
+                }
+
+                Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 14px;
+                        Text {
+                            text: "X11 Rootless Multi-Surface Docking";
+                            color: #38bdf8;
+                            font-size: 13px;
+                            font-weight: 700;
+                        }
+                        ToggleRow {
+                            title: "Universal X11 Docking Fix Hook (wine_hook.so)";
+                            description: "Intercepts pointer grab to feed continuous WM_MOVING events to QtitanDocking, preventing drag freezes.";
+                            checked <=> root.docking_fix;
+                        }
+                        ToggleRow {
+                            title: "Enforce X11 / Xwayland Mode";
+                            description: "Suppresses pure Wayland multi-surface mode to prevent docking surface crashes on Plasma and GNOME.";
+                            checked <=> root.force_x11;
+                        }
+                    }
+                }
+            }
+
+            // Tab 3: FastFlags
+            if root.active_tab == 3: VerticalLayout {
+                spacing: 12px;
+
+                Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 14px;
+                        Text {
+                            text: "FastFlags Presets";
+                            color: #38bdf8;
+                            font-size: 13px;
+                            font-weight: 700;
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Button {
+                                text: "Default (Balanced)";
+                                primary: root.fastflags_preset == "default";
+                                clicked => {
+                                    root.fastflags_preset = "default";
+                                    root.telemetry_bypass = true;
+                                    root.gpu_light_culling = true;
+                                    root.target_fps = 60;
+                                }
+                            }
+                            Button {
+                                text: "High Refresh (Uncapped)";
+                                primary: root.fastflags_preset == "high_fps";
+                                clicked => {
+                                    root.fastflags_preset = "high_fps";
+                                    root.telemetry_bypass = true;
+                                    root.gpu_light_culling = true;
+                                    root.target_fps = 144;
+                                }
+                            }
+                            Button {
+                                text: "Low Resource (Laptop)";
+                                primary: root.fastflags_preset == "low_power";
+                                clicked => {
+                                    root.fastflags_preset = "low_power";
+                                    root.telemetry_bypass = true;
+                                    root.gpu_light_culling = false;
+                                    root.target_fps = 60;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 14px;
+                        Text {
+                            text: "Optimizations & Telemetry";
+                            color: #38bdf8;
+                            font-size: 13px;
+                            font-weight: 700;
+                        }
+                        ToggleRow {
+                            title: "Disable Background Telemetry Wait";
+                            description: "Prevents Studio from freezing on exit or boot when waiting for remote diagnostic endpoints.";
+                            checked <=> root.telemetry_bypass;
+                        }
+                        ToggleRow {
+                            title: "Fast GPU Light Culling (LightGrid3)";
+                            description: "Enables hardware-accelerated light culling in the 3D viewport.";
+                            checked <=> root.gpu_light_culling;
+                        }
+                    }
+                }
+            }
+
+            // Tab 4: Universal MCP
+            if root.active_tab == 4: VerticalLayout {
+                spacing: 12px;
+
+                Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 14px;
+                        Text {
+                            text: "AI Agent Bridge (Model Context Protocol)";
+                            color: #38bdf8;
+                            font-size: 13px;
+                            font-weight: 700;
+                        }
+                        ToggleRow {
+                            title: "Universal MCP Server Bridge";
+                            description: "Enables stdio JSON-RPC bridge for Claude Desktop, Cursor, Codex, and Antigravity.";
+                            checked <=> root.mcp_enabled;
+                        }
+                        ToggleRow {
+                            title: "Pre-Initialization Shield";
+                            description: "Replies to non-standard agent probes locally with -32601 to protect StudioMCP.exe handshake.";
+                            checked <=> root.preinit_shield;
+                        }
+                    }
+                }
+
+                Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 10px;
+                        Text {
+                            text: "Connecting Clients";
+                            color: #38bdf8;
+                            font-size: 13px;
+                            font-weight: 700;
+                        }
+                        Text {
+                            text: "To connect an AI coding assistant, configure command: 'cutlery' with args: ['mcp'].";
+                            color: #cbd5e1;
+                            font-size: 12px;
+                        }
+                        Text {
+                            text: "Antigravity plugin location: ~/.gemini/config/plugins/roblox-studio";
+                            color: #94a3b8;
+                            font-size: 11px;
+                        }
+                    }
+                }
+            }
+
+            // Tab 5: Doctor
+            if root.active_tab == 5: VerticalLayout {
+                spacing: 12px;
+
+                Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 12px;
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text {
+                                text: "System Health Diagnostics";
+                                color: #38bdf8;
+                                font-size: 13px;
+                                font-weight: 700;
+                            }
+                            Button {
+                                text: "🔄 Re-run Diagnostics";
+                                clicked => { root.run_doctor(); }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            Card {
+                                VerticalLayout {
+                                    padding: 10px;
+                                    spacing: 4px;
+                                    Text { text: "System Wine"; color: #94a3b8; font-size: 11px; }
+                                    Text { text: root.doc_wine; color: #34d399; font-size: 13px; font-weight: 700; }
+                                }
+                            }
+                            Card {
+                                VerticalLayout {
+                                    padding: 10px;
+                                    spacing: 4px;
+                                    Text { text: "Kernel NTSync"; color: #94a3b8; font-size: 11px; }
+                                    Text { text: root.doc_ntsync; color: #38bdf8; font-size: 13px; font-weight: 700; }
+                                }
+                            }
+                            Card {
+                                VerticalLayout {
+                                    padding: 10px;
+                                    spacing: 4px;
+                                    Text { text: "X11 Docking Hook"; color: #94a3b8; font-size: 11px; }
+                                    Text { text: root.doc_hook; color: #34d399; font-size: 13px; font-weight: 700; }
+                                }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            Card {
+                                VerticalLayout {
+                                    padding: 10px;
+                                    spacing: 4px;
+                                    Text { text: "DXVK Vulkan Layer"; color: #94a3b8; font-size: 11px; }
+                                    Text { text: root.doc_dxvk; color: #34d399; font-size: 13px; font-weight: 700; }
+                                }
+                            }
+                            Card {
+                                VerticalLayout {
+                                    padding: 10px;
+                                    spacing: 4px;
+                                    Text { text: "Prefix Integrity"; color: #94a3b8; font-size: 11px; }
+                                    Text { text: root.doc_prefix; color: #34d399; font-size: 13px; font-weight: 700; }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Persistent Footer
+        Rectangle {
+            height: 48px;
+            background: #111622;
+            border-color: #1e2638;
+            border-width: 1px;
+            border-radius: 10px;
+
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                alignment: space-between;
+
+                // Status message
+                VerticalLayout {
+                    alignment: center;
+                    Text {
+                        text: root.status_text;
+                        color: #94a3b8;
+                        font-size: 12px;
+                        font-weight: 500;
+                    }
+                }
+
+                // Action buttons
+                HorizontalLayout {
+                    spacing: 10px;
+                    alignment: center;
+
+                    Button {
+                        text: "💾 Save Settings";
+                        clicked => { root.save_settings(); }
+                    }
+
+                    Button {
+                        text: "🚀 Launch Roblox Studio";
+                        primary: true;
+                        clicked => { root.launch_studio(); }
+                    }
+                }
+            }
+        }
+    }
+}
