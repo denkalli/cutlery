@@ -19,12 +19,18 @@ impl Default for GeneralConfig {
     }
 }
 
+fn default_accent_color() -> String {
+    "blue".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GraphicsConfig {
     pub target_fps: i32,
     pub dummy_composition: bool,
     pub dxvk_async: bool,
     pub dpi_scale: String,
+    #[serde(default = "default_accent_color")]
+    pub accent_color: String,
 }
 
 impl Default for GraphicsConfig {
@@ -34,6 +40,7 @@ impl Default for GraphicsConfig {
             dummy_composition: true,
             dxvk_async: true,
             dpi_scale: "1.0".to_string(),
+            accent_color: "blue".to_string(),
         }
     }
 }
@@ -62,6 +69,8 @@ pub struct FastFlagsConfig {
     pub preset: String,
     pub telemetry_bypass: bool,
     pub gpu_light_culling: bool,
+    #[serde(default)]
+    pub custom: std::collections::BTreeMap<String, String>,
 }
 
 impl Default for FastFlagsConfig {
@@ -70,6 +79,7 @@ impl Default for FastFlagsConfig {
             preset: "default".to_string(),
             telemetry_bypass: true,
             gpu_light_culling: true,
+            custom: std::collections::BTreeMap::new(),
         }
     }
 }
@@ -161,6 +171,18 @@ impl CutleryConfig {
             }
             if self.fastflags.gpu_light_culling {
                 map.insert("FFlagFastGPULightCulling3".to_string(), serde_json::json!("True"));
+            }
+            for (key, val) in &self.fastflags.custom {
+                let val_json = if let Ok(n) = val.parse::<i64>() {
+                    serde_json::json!(n)
+                } else if val.eq_ignore_ascii_case("true") {
+                    serde_json::json!("True")
+                } else if val.eq_ignore_ascii_case("false") {
+                    serde_json::json!("False")
+                } else {
+                    serde_json::json!(val)
+                };
+                map.insert(key.clone(), val_json);
             }
         }
 

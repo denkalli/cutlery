@@ -1,10 +1,15 @@
-import { Button, Switch, ComboBox, LineEdit, ScrollView } from "std-widgets.slint";
+import { Switch, LineEdit, ScrollView } from "std-widgets.slint";
+
+export struct FastFlagItem {
+    name: string,
+    value: string,
+}
 
 component Card inherits Rectangle {
-    background: #141a24;
-    border-color: #242f40;
+    background: #222227;
+    border-color: #2e2e36;
     border-width: 1px;
-    border-radius: 10px;
+    border-radius: 16px;
 }
 
 component PillBadge inherits Rectangle {
@@ -16,7 +21,7 @@ component PillBadge inherits Rectangle {
     border-color: root.badge_fg.mix(#000000, 50%);
     border-width: 1px;
     border-radius: 12px;
-    height: 24px;
+    height: 26px;
 
     HorizontalLayout {
         padding-left: 10px;
@@ -27,6 +32,106 @@ component PillBadge inherits Rectangle {
             color: root.badge_fg;
             font-size: 11px;
             font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component PrimaryButton inherits Rectangle {
+    in property <string> text: "Button";
+    in property <color> btn_color: #3b82f6;
+    in property <bool> enabled: true;
+    callback clicked();
+
+    background: !root.enabled ? #27272e : (ta.pressed ? root.btn_color.darker(20%) : (ta.has-hover ? root.btn_color.brighter(15%) : root.btn_color));
+    border-radius: 12px;
+    height: 36px;
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 18px;
+        padding-right: 18px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: root.enabled ? #ffffff : #6b7280;
+            font-size: 13px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component SecondaryButton inherits Rectangle {
+    in property <string> text: "Button";
+    in property <bool> active: false;
+    in property <color> accent_color: #3b82f6;
+    callback clicked();
+
+    background: root.active ? root.accent_color.mix(#18181c, 75%) : (ta.pressed ? #24242b : (ta.has-hover ? #2a2a32 : #1e1e24));
+    border-color: root.active ? root.accent_color : #32323a;
+    border-width: 1px;
+    border-radius: 12px;
+    height: 36px;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: root.active ? #ffffff : (ta.has-hover ? #f3f4f6 : #cbd5e1);
+            font-size: 12px;
+            font-weight: root.active ? 600 : 500;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component ColorChip inherits Rectangle {
+    in property <string> label: "";
+    in property <color> chip_color: #3b82f6;
+    in property <bool> selected: false;
+    callback clicked();
+
+    background: root.selected ? root.chip_color.mix(#18181c, 75%) : (ta.has-hover ? #282830 : #1e1e24);
+    border-color: root.selected ? root.chip_color : #32323a;
+    border-width: root.selected ? 2px : 1px;
+    border-radius: 12px;
+    height: 34px;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 12px;
+        spacing: 8px;
+        alignment: center;
+
+        Rectangle {
+            width: 12px;
+            height: 12px;
+            border-radius: 6px;
+            background: root.chip_color;
+            border-color: #ffffff.mix(#000000, 70%);
+            border-width: 1px;
+        }
+
+        Text {
+            text: root.label;
+            color: root.selected ? #ffffff : #cbd5e1;
+            font-size: 12px;
+            font-weight: root.selected ? 600 : 500;
             vertical-alignment: center;
         }
     }
@@ -45,13 +150,13 @@ component ToggleRow inherits HorizontalLayout {
         spacing: 2px;
         Text {
             text: root.title;
-            color: #f1f5f9;
+            color: #ffffff;
             font-size: 13px;
             font-weight: 600;
         }
         Text {
             text: root.description;
-            color: #94a3b8;
+            color: #9ca3af;
             font-size: 11px;
         }
     }
@@ -63,12 +168,13 @@ component ToggleRow inherits HorizontalLayout {
 component TabButton inherits Rectangle {
     in property <string> text: "Tab";
     in property <bool> active: false;
+    in property <color> accent_color: #3b82f6;
     callback clicked();
 
-    background: root.active ? #1e2638 : (ta.has-hover ? #171d2b : transparent);
-    border-color: root.active ? #6366f1 : transparent;
+    background: root.active ? root.accent_color.mix(#18181c, 80%) : (ta.has-hover ? #282830 : transparent);
+    border-color: root.active ? root.accent_color : transparent;
     border-width: 1px;
-    border-radius: 8px;
+    border-radius: 10px;
     height: 34px;
 
     ta := TouchArea {
@@ -81,7 +187,7 @@ component TabButton inherits Rectangle {
         alignment: center;
         Text {
             text: root.text;
-            color: root.active ? #ffffff : (ta.has-hover ? #cbd5e1 : #94a3b8);
+            color: root.active ? #ffffff : (ta.has-hover ? #f3f4f6 : #9ca3af);
             font-size: 12px;
             font-weight: root.active ? 600 : 500;
             vertical-alignment: center;
@@ -92,11 +198,11 @@ component TabButton inherits Rectangle {
 export component AppWindow inherits Window {
     title: "Cutlery Control Center";
     icon: @image-url("../assets/cutlery.png");
-    preferred-width: 860px;
-    preferred-height: 620px;
-    min-width: 800px;
-    min-height: 580px;
-    background: #0c1017;
+    preferred-width: 1040px;
+    preferred-height: 650px;
+    min-width: 960px;
+    min-height: 600px;
+    background: #18181c;
 
     // Callbacks
     callback launch_studio();
@@ -104,8 +210,14 @@ export component AppWindow inherits Window {
     callback check_updates();
     callback open_prefix();
     callback run_doctor();
+    callback add_custom_flag(string, string);
+    callback remove_custom_flag(string);
 
-    // Bound properties
+    // Dynamic accent color
+    in-out property <string> accent_name: "blue";
+    in-out property <color> accent_color: #3b82f6;
+
+    // Navigation and status
     in-out property <int> active_tab: 0;
     in-out property <string> status_text: "System ready • Roblox Studio detected • DXVK v3.1.1 active";
     in-out property <string> studio_version: "RobloxStudioBeta (Installed)";
@@ -128,6 +240,11 @@ export component AppWindow inherits Window {
     in-out property <bool> mcp_enabled: true;
     in-out property <bool> preinit_shield: true;
     in-out property <bool> always_open_ui: true;
+
+    // Custom FastFlags
+    in-out property <[FastFlagItem]> custom_flags: [];
+    in-out property <string> new_flag_name: "";
+    in-out property <string> new_flag_value: "";
 
     // Doctor properties
     in-out property <string> doc_wine: "OK";
@@ -164,14 +281,14 @@ export component AppWindow inherits Window {
                     }
                     Text {
                         text: "Roblox Studio Linux Pre-Launch & Performance Optimizer";
-                        color: #64748b;
-                        font-size: 10px;
+                        color: #9ca3af;
+                        font-size: 11px;
                     }
                 }
                 PillBadge {
                     text: "v1.0.0";
-                    badge_bg: #6366f1.mix(#000000, 80%);
-                    badge_fg: #818cf8;
+                    badge_bg: root.accent_color.mix(#000000, 80%);
+                    badge_fg: root.accent_color.brighter(30%);
                 }
             }
 
@@ -184,19 +301,19 @@ export component AppWindow inherits Window {
                     badge_fg: #38bdf8;
                 }
                 PillBadge {
-                    text: "● Studio Ready";
+                    text: "Studio Ready";
                     badge_bg: #059669.mix(#000000, 80%);
                     badge_fg: #34d399;
                 }
             }
         }
 
-        // Top Navigation Bar (Simplified clean tab names per user feedback)
+        // Top Navigation Bar
         Rectangle {
-            background: #111622;
-            border-color: #1e2638;
+            background: #202025;
+            border-color: #2e2e36;
             border-width: 1px;
-            border-radius: 10px;
+            border-radius: 14px;
             height: 44px;
 
             HorizontalLayout {
@@ -209,31 +326,37 @@ export component AppWindow inherits Window {
                 TabButton {
                     text: "General";
                     active: root.active_tab == 0;
+                    accent_color: root.accent_color;
                     clicked => { root.active_tab = 0; }
                 }
                 TabButton {
                     text: "Graphics";
                     active: root.active_tab == 1;
+                    accent_color: root.accent_color;
                     clicked => { root.active_tab = 1; }
                 }
                 TabButton {
                     text: "Kernel";
                     active: root.active_tab == 2;
+                    accent_color: root.accent_color;
                     clicked => { root.active_tab = 2; }
                 }
                 TabButton {
                     text: "FastFlags";
                     active: root.active_tab == 3;
+                    accent_color: root.accent_color;
                     clicked => { root.active_tab = 3; }
                 }
                 TabButton {
                     text: "Universal MCP";
                     active: root.active_tab == 4;
+                    accent_color: root.accent_color;
                     clicked => { root.active_tab = 4; }
                 }
                 TabButton {
                     text: "Doctor";
                     active: root.active_tab == 5;
+                    accent_color: root.accent_color;
                     clicked => {
                         root.active_tab = 5;
                         root.run_doctor();
@@ -253,30 +376,30 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 14px;
-                        spacing: 10px;
+                        padding: 16px;
+                        spacing: 12px;
                         Text {
                             text: "Environment Status";
-                            color: #38bdf8;
-                            font-size: 13px;
+                            color: root.accent_color;
+                            font-size: 14px;
                             font-weight: 700;
                         }
                         HorizontalLayout {
-                            spacing: 10px;
+                            spacing: 12px;
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: "Studio Version:"; color: #94a3b8; font-size: 11px; }
-                                Text { text: root.studio_version; color: #f8fafc; font-size: 12px; font-weight: 600; }
+                                Text { text: "Studio Version:"; color: #9ca3af; font-size: 11px; }
+                                Text { text: root.studio_version; color: #ffffff; font-size: 12px; font-weight: 600; }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: "System Wine:"; color: #94a3b8; font-size: 11px; }
-                                Text { text: root.wine_version; color: #f8fafc; font-size: 12px; font-weight: 600; }
+                                Text { text: "System Wine:"; color: #9ca3af; font-size: 11px; }
+                                Text { text: root.wine_version; color: #ffffff; font-size: 12px; font-weight: 600; }
                             }
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: "Wine Prefix Path:"; color: #94a3b8; font-size: 11px; }
-                                Text { text: root.prefix_path; color: #f8fafc; font-size: 12px; font-weight: 600; }
+                                Text { text: "Wine Prefix Path:"; color: #9ca3af; font-size: 11px; }
+                                Text { text: root.prefix_path; color: #ffffff; font-size: 12px; font-weight: 600; }
                             }
                         }
                     }
@@ -284,26 +407,29 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 14px;
+                        padding: 16px;
                         spacing: 12px;
                         Text {
                             text: "Quick Management Actions";
-                            color: #38bdf8;
-                            font-size: 13px;
+                            color: root.accent_color;
+                            font-size: 14px;
                             font-weight: 700;
                         }
                         HorizontalLayout {
                             spacing: 10px;
-                            Button {
-                                text: "🔄 Check Studio Updates";
+                            SecondaryButton {
+                                text: "Check Studio Updates";
+                                accent_color: root.accent_color;
                                 clicked => { root.check_updates(); }
                             }
-                            Button {
-                                text: "📁 Open Wine Prefix Directory";
+                            SecondaryButton {
+                                text: "Open Prefix Directory";
+                                accent_color: root.accent_color;
                                 clicked => { root.open_prefix(); }
                             }
-                            Button {
-                                text: "🛠️ Re-provision Wine Prefix";
+                            SecondaryButton {
+                                text: "Re-provision Prefix";
+                                accent_color: root.accent_color;
                                 clicked => { root.check_updates(); }
                             }
                         }
@@ -312,12 +438,12 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 14px;
+                        padding: 16px;
                         spacing: 12px;
                         Text {
                             text: "Launcher Behavior";
-                            color: #38bdf8;
-                            font-size: 13px;
+                            color: root.accent_color;
+                            font-size: 14px;
                             font-weight: 700;
                         }
                         ToggleRow {
@@ -335,12 +461,97 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 14px;
+                        padding: 16px;
+                        spacing: 12px;
+                        Text {
+                            text: "UI Accent Color Theme";
+                            color: root.accent_color;
+                            font-size: 14px;
+                            font-weight: 700;
+                        }
+                        Text {
+                            text: "Personalize dashboard highlights to suit your Linux desktop environment.";
+                            color: #9ca3af;
+                            font-size: 11px;
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+                            ColorChip {
+                                label: "Blue";
+                                chip_color: #3b82f6;
+                                selected: root.accent_name == "blue";
+                                clicked => {
+                                    root.accent_name = "blue";
+                                    root.accent_color = #3b82f6;
+                                }
+                            }
+                            ColorChip {
+                                label: "Cyan";
+                                chip_color: #0ea5e9;
+                                selected: root.accent_name == "cyan";
+                                clicked => {
+                                    root.accent_name = "cyan";
+                                    root.accent_color = #0ea5e9;
+                                }
+                            }
+                            ColorChip {
+                                label: "Indigo";
+                                chip_color: #6366f1;
+                                selected: root.accent_name == "indigo";
+                                clicked => {
+                                    root.accent_name = "indigo";
+                                    root.accent_color = #6366f1;
+                                }
+                            }
+                            ColorChip {
+                                label: "Emerald";
+                                chip_color: #10b981;
+                                selected: root.accent_name == "emerald";
+                                clicked => {
+                                    root.accent_name = "emerald";
+                                    root.accent_color = #10b981;
+                                }
+                            }
+                            ColorChip {
+                                label: "Amber";
+                                chip_color: #f59e0b;
+                                selected: root.accent_name == "amber";
+                                clicked => {
+                                    root.accent_name = "amber";
+                                    root.accent_color = #f59e0b;
+                                }
+                            }
+                            ColorChip {
+                                label: "Violet";
+                                chip_color: #8b5cf6;
+                                selected: root.accent_name == "violet";
+                                clicked => {
+                                    root.accent_name = "violet";
+                                    root.accent_color = #8b5cf6;
+                                }
+                            }
+                            ColorChip {
+                                label: "Rose";
+                                chip_color: #f43f5e;
+                                selected: root.accent_name == "rose";
+                                clicked => {
+                                    root.accent_name = "rose";
+                                    root.accent_color = #f43f5e;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Card {
+                    VerticalLayout {
+                        padding: 16px;
                         spacing: 14px;
                         Text {
                             text: "DXVK Vulkan Renderer & Swapchain";
-                            color: #38bdf8;
-                            font-size: 13px;
+                            color: root.accent_color;
+                            font-size: 14px;
                             font-weight: 700;
                         }
                         ToggleRow {
@@ -358,47 +569,52 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 14px;
+                        padding: 16px;
                         spacing: 14px;
                         Text {
                             text: "Display & Framerate";
-                            color: #38bdf8;
-                            font-size: 13px;
+                            color: root.accent_color;
+                            font-size: 14px;
                             font-weight: 700;
                         }
                         HorizontalLayout {
                             alignment: space-between;
                             VerticalLayout {
                                 spacing: 2px;
-                                Text { text: "Target Viewport Framerate"; color: #f1f5f9; font-size: 13px; font-weight: 600; }
-                                Text { text: "Controls Roblox TaskScheduler FPS cap (DFIntTaskSchedulerTargetFps)"; color: #94a3b8; font-size: 11px; }
+                                Text { text: "Target Viewport Framerate"; color: #ffffff; font-size: 13px; font-weight: 600; }
+                                Text { text: "Controls Roblox TaskScheduler FPS cap (DFIntTaskSchedulerTargetFps)"; color: #9ca3af; font-size: 11px; }
                             }
                             HorizontalLayout {
                                 spacing: 6px;
                                 alignment: center;
-                                Button {
+                                SecondaryButton {
                                     text: "60 FPS";
-                                    primary: root.target_fps == 60;
+                                    active: root.target_fps == 60;
+                                    accent_color: root.accent_color;
                                     clicked => { root.target_fps = 60; }
                                 }
-                                Button {
+                                SecondaryButton {
                                     text: "120 FPS";
-                                    primary: root.target_fps == 120;
+                                    active: root.target_fps == 120;
+                                    accent_color: root.accent_color;
                                     clicked => { root.target_fps = 120; }
                                 }
-                                Button {
+                                SecondaryButton {
                                     text: "144 FPS";
-                                    primary: root.target_fps == 144;
+                                    active: root.target_fps == 144;
+                                    accent_color: root.accent_color;
                                     clicked => { root.target_fps = 144; }
                                 }
-                                Button {
+                                SecondaryButton {
                                     text: "240 FPS";
-                                    primary: root.target_fps == 240;
+                                    active: root.target_fps == 240;
+                                    accent_color: root.accent_color;
                                     clicked => { root.target_fps = 240; }
                                 }
-                                Button {
+                                SecondaryButton {
                                     text: "Unlimited";
-                                    primary: root.target_fps == 0;
+                                    active: root.target_fps == 0;
+                                    accent_color: root.accent_color;
                                     clicked => { root.target_fps = 0; }
                                 }
                             }
@@ -413,12 +629,12 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 14px;
+                        padding: 16px;
                         spacing: 14px;
                         Text {
                             text: "Linux Kernel Synchronization Engine";
-                            color: #38bdf8;
-                            font-size: 13px;
+                            color: root.accent_color;
+                            font-size: 14px;
                             font-weight: 700;
                         }
                         ToggleRow {
@@ -436,12 +652,12 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 14px;
+                        padding: 16px;
                         spacing: 14px;
                         Text {
                             text: "X11 Rootless Multi-Surface Docking";
-                            color: #38bdf8;
-                            font-size: 13px;
+                            color: root.accent_color;
+                            font-size: 14px;
                             font-weight: 700;
                         }
                         ToggleRow {
@@ -464,19 +680,20 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 14px;
+                        padding: 16px;
                         spacing: 14px;
                         Text {
                             text: "FastFlags Presets";
-                            color: #38bdf8;
-                            font-size: 13px;
+                            color: root.accent_color;
+                            font-size: 14px;
                             font-weight: 700;
                         }
                         HorizontalLayout {
                             spacing: 8px;
-                            Button {
+                            SecondaryButton {
                                 text: "Default (Balanced)";
-                                primary: root.fastflags_preset == "default";
+                                active: root.fastflags_preset == "default";
+                                accent_color: root.accent_color;
                                 clicked => {
                                     root.fastflags_preset = "default";
                                     root.telemetry_bypass = true;
@@ -484,9 +701,10 @@ export component AppWindow inherits Window {
                                     root.target_fps = 60;
                                 }
                             }
-                            Button {
+                            SecondaryButton {
                                 text: "High Refresh (Uncapped)";
-                                primary: root.fastflags_preset == "high_fps";
+                                active: root.fastflags_preset == "high_fps";
+                                accent_color: root.accent_color;
                                 clicked => {
                                     root.fastflags_preset = "high_fps";
                                     root.telemetry_bypass = true;
@@ -494,9 +712,10 @@ export component AppWindow inherits Window {
                                     root.target_fps = 144;
                                 }
                             }
-                            Button {
+                            SecondaryButton {
                                 text: "Low Resource (Laptop)";
-                                primary: root.fastflags_preset == "low_power";
+                                active: root.fastflags_preset == "low_power";
+                                accent_color: root.accent_color;
                                 clicked => {
                                     root.fastflags_preset = "low_power";
                                     root.telemetry_bypass = true;
@@ -510,12 +729,12 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 14px;
+                        padding: 16px;
                         spacing: 14px;
                         Text {
                             text: "Optimizations & Telemetry";
-                            color: #38bdf8;
-                            font-size: 13px;
+                            color: root.accent_color;
+                            font-size: 14px;
                             font-weight: 700;
                         }
                         ToggleRow {
@@ -530,6 +749,138 @@ export component AppWindow inherits Window {
                         }
                     }
                 }
+
+                // Custom FastFlags section
+                Card {
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 12px;
+                        Text {
+                            text: "Custom FastFlags";
+                            color: root.accent_color;
+                            font-size: 14px;
+                            font-weight: 700;
+                        }
+                        Text {
+                            text: "Inject custom engine flags into ClientAppSettings.json (e.g. FFlag..., DFInt..., DFFlag...).";
+                            color: #9ca3af;
+                            font-size: 11px;
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: center;
+                            LineEdit {
+                                placeholder-text: "Flag name (e.g. FFlagDebugDisplayFPS)";
+                                text <=> root.new_flag_name;
+                                horizontal-stretch: 3;
+                            }
+                            LineEdit {
+                                placeholder-text: "Value (e.g. True or 144)";
+                                text <=> root.new_flag_value;
+                                horizontal-stretch: 2;
+                            }
+                            PrimaryButton {
+                                text: "Add Flag";
+                                btn_color: root.accent_color;
+                                enabled: root.new_flag_name != "" && root.new_flag_value != "";
+                                clicked => {
+                                    root.add_custom_flag(root.new_flag_name, root.new_flag_value);
+                                    root.new_flag_name = "";
+                                    root.new_flag_value = "";
+                                }
+                            }
+                        }
+
+                        // List of custom flags
+                        if root.custom_flags.length > 0: ScrollView {
+                            height: 140px;
+                            VerticalLayout {
+                                spacing: 6px;
+                                for item in root.custom_flags: Rectangle {
+                                    background: #18181c;
+                                    border-color: #2e2e36;
+                                    border-width: 1px;
+                                    border-radius: 10px;
+                                    height: 38px;
+
+                                    HorizontalLayout {
+                                        padding-left: 12px;
+                                        padding-right: 12px;
+                                        alignment: space-between;
+
+                                        HorizontalLayout {
+                                            spacing: 10px;
+                                            alignment: center;
+                                            Text {
+                                                text: item.name;
+                                                color: #ffffff;
+                                                font-size: 12px;
+                                                font-weight: 600;
+                                                vertical-alignment: center;
+                                            }
+                                            Text {
+                                                text: "=";
+                                                color: #6b7280;
+                                                font-size: 12px;
+                                                vertical-alignment: center;
+                                            }
+                                            Text {
+                                                text: item.value;
+                                                color: root.accent_color;
+                                                font-size: 12px;
+                                                font-weight: 600;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            width: 76px;
+                                            height: 26px;
+                                            border-radius: 8px;
+                                            background: ta_rm.has-hover ? #ef4444.mix(#18181c, 70%) : #25252b;
+                                            border-color: ta_rm.has-hover ? #ef4444 : #35353e;
+                                            border-width: 1px;
+
+                                            ta_rm := TouchArea {
+                                                clicked => {
+                                                    root.remove_custom_flag(item.name);
+                                                }
+                                            }
+
+                                            HorizontalLayout {
+                                                alignment: center;
+                                                Text {
+                                                    text: "Remove";
+                                                    color: ta_rm.has-hover ? #ffffff : #f87171;
+                                                    font-size: 11px;
+                                                    font-weight: 600;
+                                                    vertical-alignment: center;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.custom_flags.length == 0: Rectangle {
+                            height: 44px;
+                            background: #18181c;
+                            border-color: #2e2e36;
+                            border-width: 1px;
+                            border-radius: 10px;
+                            HorizontalLayout {
+                                alignment: center;
+                                Text {
+                                    text: "No custom FastFlags defined yet. Enter a flag name and value above.";
+                                    color: #6b7280;
+                                    font-size: 12px;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // Tab 4: Universal MCP
@@ -538,12 +889,12 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 14px;
+                        padding: 16px;
                         spacing: 14px;
                         Text {
                             text: "AI Agent Bridge (Model Context Protocol)";
-                            color: #38bdf8;
-                            font-size: 13px;
+                            color: root.accent_color;
+                            font-size: 14px;
                             font-weight: 700;
                         }
                         ToggleRow {
@@ -561,12 +912,12 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 14px;
+                        padding: 16px;
                         spacing: 10px;
                         Text {
                             text: "Connecting Clients";
-                            color: #38bdf8;
-                            font-size: 13px;
+                            color: root.accent_color;
+                            font-size: 14px;
                             font-weight: 700;
                         }
                         Text {
@@ -576,7 +927,7 @@ export component AppWindow inherits Window {
                         }
                         Text {
                             text: "Antigravity plugin location: ~/.gemini/config/plugins/roblox-studio";
-                            color: #94a3b8;
+                            color: #9ca3af;
                             font-size: 11px;
                         }
                     }
@@ -589,18 +940,19 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 14px;
+                        padding: 16px;
                         spacing: 12px;
                         HorizontalLayout {
                             alignment: space-between;
                             Text {
                                 text: "System Health Diagnostics";
-                                color: #38bdf8;
-                                font-size: 13px;
+                                color: root.accent_color;
+                                font-size: 14px;
                                 font-weight: 700;
                             }
-                            Button {
-                                text: "🔄 Re-run Diagnostics";
+                            SecondaryButton {
+                                text: "Run Diagnostics";
+                                accent_color: root.accent_color;
                                 clicked => { root.run_doctor(); }
                             }
                         }
@@ -609,25 +961,25 @@ export component AppWindow inherits Window {
                             spacing: 10px;
                             Card {
                                 VerticalLayout {
-                                    padding: 10px;
+                                    padding: 12px;
                                     spacing: 4px;
-                                    Text { text: "System Wine"; color: #94a3b8; font-size: 11px; }
+                                    Text { text: "System Wine"; color: #9ca3af; font-size: 11px; }
                                     Text { text: root.doc_wine; color: #34d399; font-size: 13px; font-weight: 700; }
                                 }
                             }
                             Card {
                                 VerticalLayout {
-                                    padding: 10px;
+                                    padding: 12px;
                                     spacing: 4px;
-                                    Text { text: "Kernel NTSync"; color: #94a3b8; font-size: 11px; }
+                                    Text { text: "Kernel NTSync"; color: #9ca3af; font-size: 11px; }
                                     Text { text: root.doc_ntsync; color: #38bdf8; font-size: 13px; font-weight: 700; }
                                 }
                             }
                             Card {
                                 VerticalLayout {
-                                    padding: 10px;
+                                    padding: 12px;
                                     spacing: 4px;
-                                    Text { text: "X11 Docking Hook"; color: #94a3b8; font-size: 11px; }
+                                    Text { text: "X11 Docking Hook"; color: #9ca3af; font-size: 11px; }
                                     Text { text: root.doc_hook; color: #34d399; font-size: 13px; font-weight: 700; }
                                 }
                             }
@@ -637,17 +989,17 @@ export component AppWindow inherits Window {
                             spacing: 10px;
                             Card {
                                 VerticalLayout {
-                                    padding: 10px;
+                                    padding: 12px;
                                     spacing: 4px;
-                                    Text { text: "DXVK Vulkan Layer"; color: #94a3b8; font-size: 11px; }
+                                    Text { text: "DXVK Vulkan Layer"; color: #9ca3af; font-size: 11px; }
                                     Text { text: root.doc_dxvk; color: #34d399; font-size: 13px; font-weight: 700; }
                                 }
                             }
                             Card {
                                 VerticalLayout {
-                                    padding: 10px;
+                                    padding: 12px;
                                     spacing: 4px;
-                                    Text { text: "Prefix Integrity"; color: #94a3b8; font-size: 11px; }
+                                    Text { text: "Prefix Integrity"; color: #9ca3af; font-size: 11px; }
                                     Text { text: root.doc_prefix; color: #34d399; font-size: 13px; font-weight: 700; }
                                 }
                             }
@@ -659,15 +1011,15 @@ export component AppWindow inherits Window {
 
         // Persistent Footer
         Rectangle {
-            height: 48px;
-            background: #111622;
-            border-color: #1e2638;
+            height: 52px;
+            background: #202025;
+            border-color: #2e2e36;
             border-width: 1px;
-            border-radius: 10px;
+            border-radius: 14px;
 
             HorizontalLayout {
-                padding-left: 14px;
-                padding-right: 14px;
+                padding-left: 16px;
+                padding-right: 16px;
                 alignment: space-between;
 
                 // Status message
@@ -675,7 +1027,7 @@ export component AppWindow inherits Window {
                     alignment: center;
                     Text {
                         text: root.status_text;
-                        color: #94a3b8;
+                        color: #9ca3af;
                         font-size: 12px;
                         font-weight: 500;
                     }
@@ -686,14 +1038,15 @@ export component AppWindow inherits Window {
                     spacing: 10px;
                     alignment: center;
 
-                    Button {
-                        text: "💾 Save Settings";
+                    SecondaryButton {
+                        text: "Save Settings";
+                        accent_color: root.accent_color;
                         clicked => { root.save_settings(); }
                     }
 
-                    Button {
-                        text: "🚀 Launch Roblox Studio";
-                        primary: true;
+                    PrimaryButton {
+                        text: "Launch Studio";
+                        btn_color: root.accent_color;
                         clicked => { root.launch_studio(); }
                     }
                 }

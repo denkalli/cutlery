@@ -1,6 +1,6 @@
 use std::path::Path;
 use std::process::Command;
-use slint::ComponentHandle;
+use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
 use crate::config::CutleryConfig;
 use crate::{cmd_install, cmd_run, find_studio_exe, get_root_dir};
@@ -54,6 +54,19 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
     app.set_prefix_path(prefix.to_string_lossy().to_string().into());
     app.set_ntsync_available(ntsync_avail);
 
+    // Dynamic accent color
+    let (acc_name, acc_col) = match config.graphics.accent_color.as_str() {
+        "cyan" => ("cyan", slint::Color::from_rgb_u8(14, 165, 233)),
+        "indigo" => ("indigo", slint::Color::from_rgb_u8(99, 102, 241)),
+        "emerald" => ("emerald", slint::Color::from_rgb_u8(16, 185, 129)),
+        "amber" => ("amber", slint::Color::from_rgb_u8(245, 158, 11)),
+        "violet" => ("violet", slint::Color::from_rgb_u8(139, 92, 246)),
+        "rose" => ("rose", slint::Color::from_rgb_u8(244, 63, 94)),
+        _ => ("blue", slint::Color::from_rgb_u8(59, 130, 246)),
+    };
+    app.set_accent_name(acc_name.into());
+    app.set_accent_color(acc_col);
+
     app.set_target_fps(config.graphics.target_fps);
     app.set_dummy_composition(config.graphics.dummy_composition);
     app.set_dxvk_async(config.graphics.dxvk_async);
@@ -67,6 +80,16 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
     app.set_telemetry_bypass(config.fastflags.telemetry_bypass);
     app.set_gpu_light_culling(config.fastflags.gpu_light_culling);
     app.set_fastflags_preset(config.fastflags.preset.into());
+
+    // Custom FastFlags Model
+    let custom_flags_model = std::rc::Rc::new(VecModel::default());
+    for (k, v) in &config.fastflags.custom {
+        custom_flags_model.push(FastFlagItem {
+            name: k.clone().into(),
+            value: v.clone().into(),
+        });
+    }
+    app.set_custom_flags(ModelRc::from(custom_flags_model.clone()));
 
     app.set_mcp_enabled(config.mcp.enabled);
     app.set_preinit_shield(config.mcp.preinit_shield);
@@ -90,13 +113,55 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
     let app_weak = app.as_weak();
     let prefix_clone = prefix.clone();
 
+    // Callback: Add Custom FastFlag
+    let flags_model_add = custom_flags_model.clone();
+    app.on_add_custom_flag(move |name, value| {
+        let name_str = name.trim().to_string();
+        let value_str = value.trim().to_string();
+        if !name_str.is_empty() && !value_str.is_empty() {
+            let mut idx_to_remove = None;
+            for i in 0..flags_model_add.row_count() {
+                if let Some(item) = flags_model_add.row_data(i) {
+                    if item.name.as_str() == name_str {
+                        idx_to_remove = Some(i);
+                        break;
+                    }
+                }
+            }
+            if let Some(i) = idx_to_remove {
+                flags_model_add.remove(i);
+            }
+            flags_model_add.push(FastFlagItem {
+                name: name_str.into(),
+                value: value_str.into(),
+            });
+        }
+    });
+
+    // Callback: Remove Custom FastFlag
+    let flags_model_rm = custom_flags_model.clone();
+    app.on_remove_custom_flag(move |name| {
+        let name_str = name.as_str();
+        for i in 0..flags_model_rm.row_count() {
+            if let Some(item) = flags_model_rm.row_data(i) {
+                if item.name.as_str() == name_str {
+                    flags_model_rm.remove(i);
+                    break;
+                }
+            }
+        }
+    });
+
     // Callback: Save Settings
+    let flags_model_save = custom_flags_model.clone();
     app.on_save_settings({
         let app_weak = app_weak.clone();
         let prefix = prefix_clone.clone();
+        let flags_model = flags_model_save.clone();
         move || {
             if let Some(app) = app_weak.upgrade() {
                 let mut cfg = CutleryConfig::load();
+                cfg.graphics.accent_color = app.get_accent_name().to_string();
                 cfg.graphics.target_fps = app.get_target_fps();
                 cfg.graphics.dummy_composition = app.get_dummy_composition();
                 cfg.graphics.dxvk_async = app.get_dxvk_async();
@@ -107,6 +172,14 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
                 cfg.fastflags.telemetry_bypass = app.get_telemetry_bypass();
                 cfg.fastflags.gpu_light_culling = app.get_gpu_light_culling();
                 cfg.fastflags.preset = app.get_fastflags_preset().to_string();
+
+                cfg.fastflags.custom.clear();
+                for i in 0..flags_model.row_count() {
+                    if let Some(item) = flags_model.row_data(i) {
+                        cfg.fastflags.custom.insert(item.name.to_string(), item.value.to_string());
+                    }
+                }
+
                 cfg.mcp.enabled = app.get_mcp_enabled();
                 cfg.mcp.preinit_shield = app.get_preinit_shield();
                 cfg.general.always_open_ui = app.get_always_open_ui();
@@ -120,19 +193,22 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
 
-                app.set_status_text("Settings saved successfully! ✓".into());
+                app.set_status_text("Settings saved successfully.".into());
             }
         }
     });
 
     // Callback: Launch Studio
+    let flags_model_launch = custom_flags_model.clone();
     app.on_launch_studio({
         let app_weak = app_weak.clone();
         let prefix = prefix_clone.clone();
+        let flags_model = flags_model_launch.clone();
         move || {
             if let Some(app) = app_weak.upgrade() {
                 // Save settings first
                 let mut cfg = CutleryConfig::load();
+                cfg.graphics.accent_color = app.get_accent_name().to_string();
                 cfg.graphics.target_fps = app.get_target_fps();
                 cfg.graphics.dummy_composition = app.get_dummy_composition();
                 cfg.graphics.dxvk_async = app.get_dxvk_async();
@@ -143,6 +219,14 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
                 cfg.fastflags.telemetry_bypass = app.get_telemetry_bypass();
                 cfg.fastflags.gpu_light_culling = app.get_gpu_light_culling();
                 cfg.fastflags.preset = app.get_fastflags_preset().to_string();
+
+                cfg.fastflags.custom.clear();
+                for i in 0..flags_model.row_count() {
+                    if let Some(item) = flags_model.row_data(i) {
+                        cfg.fastflags.custom.insert(item.name.to_string(), item.value.to_string());
+                    }
+                }
+
                 cfg.mcp.enabled = app.get_mcp_enabled();
                 cfg.mcp.preinit_shield = app.get_preinit_shield();
                 cfg.general.always_open_ui = app.get_always_open_ui();
@@ -179,7 +263,7 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(app) = app_weak.upgrade() {
                 app.set_status_text("Running installer/updater in background...".into());
                 let _ = cmd_install();
-                app.set_status_text("Update/Install check completed! ✓".into());
+                app.set_status_text("Update and install check completed.".into());
             }
         }
     });
@@ -209,7 +293,7 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
                 app.set_doc_hook(if hook_present { "OK (wine_hook.so)" } else { "MISSING" }.into());
                 app.set_doc_dxvk(if dxvk_present { "OK (v3.1.1)" } else { "Auto-fetch" }.into());
                 app.set_doc_prefix(if studio_exe.is_some() { "OK (Installed)" } else { "Needs Install" }.into());
-                app.set_status_text("Diagnostics refreshed successfully! ✓".into());
+                app.set_status_text("Diagnostics refreshed successfully.".into());
             }
         }
     });
