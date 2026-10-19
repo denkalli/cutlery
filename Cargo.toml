@@ -1,9 +1,9 @@
 [package]
 name = "cutlery"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 description = "A lightweight Roblox Studio launcher for Linux with native rootless docking fixes and Universal AI MCP Bridge"
-authors = ["Cutlery Contributors"]
+authors = ["Cutlery Contributors", "Gemini <gemini@google.com>"]
 license = "GPL-3.0-or-later"
 
 [[bin]]

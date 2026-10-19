@@ -134,12 +134,17 @@ fn ensure_dxvk(sandbox: &Path, data_dir: &Path) -> PathBuf {
 
     if let Ok(status) = curl_status {
         if status.success() {
-            let checksum_check = Command::new("sh")
-                .args([
-                    "-c",
-                    &format!("echo \"{}  {}\" | sha256sum -c --status", DXVK_SHA256, tarball.to_string_lossy())
-                ])
-                .status();
+            let checksum_check = Command::new("sha256sum")
+                .args(["-c", "--status"])
+                .stdin(std::process::Stdio::piped())
+                .spawn()
+                .and_then(|mut child| {
+                    if let Some(mut stdin) = child.stdin.take() {
+                        use std::io::Write;
+                        let _ = write!(stdin, "{}  {}\n", DXVK_SHA256, tarball.display());
+                    }
+                    child.wait()
+                });
 
             match checksum_check {
                 Ok(chk) if chk.success() => {
