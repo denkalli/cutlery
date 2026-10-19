@@ -9,7 +9,7 @@ component Card inherits Rectangle {
     background: #222227;
     border-color: #2e2e36;
     border-width: 1px;
-    border-radius: 16px;
+    border-radius: 12px;
 }
 
 component PillBadge inherits Rectangle {
@@ -20,12 +20,12 @@ component PillBadge inherits Rectangle {
     background: root.badge_bg;
     border-color: root.badge_fg.mix(#000000, 50%);
     border-width: 1px;
-    border-radius: 12px;
-    height: 26px;
+    border-radius: 6px;
+    height: 24px;
 
     HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 10px;
+        padding-left: 8px;
+        padding-right: 8px;
         alignment: center;
         Text {
             text: root.text;
@@ -44,8 +44,8 @@ component PrimaryButton inherits Rectangle {
     callback clicked();
 
     background: !root.enabled ? #27272e : (ta.pressed ? root.btn_color.darker(20%) : (ta.has-hover ? root.btn_color.brighter(15%) : root.btn_color));
-    border-radius: 12px;
-    height: 36px;
+    border-radius: 8px;
+    height: 32px;
 
     ta := TouchArea {
         enabled: root.enabled;
@@ -53,13 +53,13 @@ component PrimaryButton inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 18px;
-        padding-right: 18px;
+        padding-left: 16px;
+        padding-right: 16px;
         alignment: center;
         Text {
             text: root.text;
             color: root.enabled ? #ffffff : #6b7280;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             vertical-alignment: center;
         }
@@ -72,24 +72,24 @@ component SecondaryButton inherits Rectangle {
     in property <color> accent_color: #3b82f6;
     callback clicked();
 
-    background: root.active ? root.accent_color.mix(#18181c, 75%) : (ta.pressed ? #24242b : (ta.has-hover ? #2a2a32 : #1e1e24));
+    background: root.active ? root.accent_color : (ta.pressed ? #24242b : (ta.has-hover ? #2a2a32 : #1e1e24));
     border-color: root.active ? root.accent_color : #32323a;
     border-width: 1px;
-    border-radius: 12px;
-    height: 36px;
+    border-radius: 8px;
+    height: 30px;
 
     ta := TouchArea {
         clicked => { root.clicked(); }
     }
 
     HorizontalLayout {
-        padding-left: 14px;
-        padding-right: 14px;
+        padding-left: 12px;
+        padding-right: 12px;
         alignment: center;
         Text {
             text: root.text;
             color: root.active ? #ffffff : (ta.has-hover ? #f3f4f6 : #cbd5e1);
-            font-size: 12px;
+            font-size: 11px;
             font-weight: root.active ? 600 : 500;
             vertical-alignment: center;
         }
@@ -102,11 +102,11 @@ component ColorChip inherits Rectangle {
     in property <bool> selected: false;
     callback clicked();
 
-    background: root.selected ? root.chip_color.mix(#18181c, 75%) : (ta.has-hover ? #282830 : #1e1e24);
-    border-color: root.selected ? root.chip_color : #32323a;
-    border-width: root.selected ? 2px : 1px;
-    border-radius: 12px;
-    height: 34px;
+    background: root.selected ? root.chip_color : (ta.has-hover ? #282830 : #1e1e24);
+    border-color: root.selected ? root.chip_color.brighter(20%) : #32323a;
+    border-width: 1px;
+    border-radius: 8px;
+    height: 30px;
 
     ta := TouchArea {
         clicked => { root.clicked(); }
@@ -115,14 +115,14 @@ component ColorChip inherits Rectangle {
     HorizontalLayout {
         padding-left: 10px;
         padding-right: 12px;
-        spacing: 8px;
+        spacing: 6px;
         alignment: center;
 
         Rectangle {
-            width: 12px;
-            height: 12px;
-            border-radius: 6px;
-            background: root.chip_color;
+            width: 10px;
+            height: 10px;
+            border-radius: 5px;
+            background: root.selected ? #ffffff : root.chip_color;
             border-color: #ffffff.mix(#000000, 70%);
             border-width: 1px;
         }
@@ -130,7 +130,7 @@ component ColorChip inherits Rectangle {
         Text {
             text: root.label;
             color: root.selected ? #ffffff : #cbd5e1;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: root.selected ? 600 : 500;
             vertical-alignment: center;
         }
@@ -171,19 +171,19 @@ component TabButton inherits Rectangle {
     in property <color> accent_color: #3b82f6;
     callback clicked();
 
-    background: root.active ? root.accent_color.mix(#18181c, 80%) : (ta.has-hover ? #282830 : transparent);
+    background: root.active ? root.accent_color : (ta.has-hover ? #282830 : transparent);
     border-color: root.active ? root.accent_color : transparent;
     border-width: 1px;
-    border-radius: 10px;
-    height: 34px;
+    border-radius: 8px;
+    height: 32px;
 
     ta := TouchArea {
         clicked => { root.clicked(); }
     }
 
     HorizontalLayout {
-        padding-left: 14px;
-        padding-right: 14px;
+        padding-left: 16px;
+        padding-right: 16px;
         alignment: center;
         Text {
             text: root.text;
@@ -313,15 +313,16 @@ export component AppWindow inherits Window {
             background: #202025;
             border-color: #2e2e36;
             border-width: 1px;
-            border-radius: 14px;
-            height: 44px;
+            border-radius: 12px;
+            height: 42px;
 
             HorizontalLayout {
                 padding-left: 6px;
                 padding-right: 6px;
                 padding-top: 4px;
                 padding-bottom: 4px;
-                spacing: 6px;
+                spacing: 4px;
+                alignment: start;
 
                 TabButton {
                     text: "General";
@@ -376,7 +377,7 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 16px;
+                        padding: 14px;
                         spacing: 12px;
                         Text {
                             text: "Environment Status";
@@ -385,7 +386,7 @@ export component AppWindow inherits Window {
                             font-weight: 700;
                         }
                         HorizontalLayout {
-                            spacing: 12px;
+                            spacing: 16px;
                             VerticalLayout {
                                 spacing: 4px;
                                 Text { text: "Studio Version:"; color: #9ca3af; font-size: 11px; }
@@ -407,7 +408,7 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 16px;
+                        padding: 14px;
                         spacing: 12px;
                         Text {
                             text: "Quick Management Actions";
@@ -416,7 +417,8 @@ export component AppWindow inherits Window {
                             font-weight: 700;
                         }
                         HorizontalLayout {
-                            spacing: 10px;
+                            spacing: 8px;
+                            alignment: start;
                             SecondaryButton {
                                 text: "Check Studio Updates";
                                 accent_color: root.accent_color;
@@ -438,7 +440,7 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 16px;
+                        padding: 14px;
                         spacing: 12px;
                         Text {
                             text: "Launcher Behavior";
@@ -461,8 +463,8 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 16px;
-                        spacing: 12px;
+                        padding: 14px;
+                        spacing: 10px;
                         Text {
                             text: "UI Accent Color Theme";
                             color: root.accent_color;
@@ -546,8 +548,8 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 16px;
-                        spacing: 14px;
+                        padding: 14px;
+                        spacing: 12px;
                         Text {
                             text: "DXVK Vulkan Renderer & Swapchain";
                             color: root.accent_color;
@@ -569,8 +571,8 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 16px;
-                        spacing: 14px;
+                        padding: 14px;
+                        spacing: 12px;
                         Text {
                             text: "Display & Framerate";
                             color: root.accent_color;
@@ -585,7 +587,7 @@ export component AppWindow inherits Window {
                                 Text { text: "Controls Roblox TaskScheduler FPS cap (DFIntTaskSchedulerTargetFps)"; color: #9ca3af; font-size: 11px; }
                             }
                             HorizontalLayout {
-                                spacing: 6px;
+                                spacing: 4px;
                                 alignment: center;
                                 SecondaryButton {
                                     text: "60 FPS";
@@ -629,8 +631,8 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 16px;
-                        spacing: 14px;
+                        padding: 14px;
+                        spacing: 12px;
                         Text {
                             text: "Linux Kernel Synchronization Engine";
                             color: root.accent_color;
@@ -652,8 +654,8 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 16px;
-                        spacing: 14px;
+                        padding: 14px;
+                        spacing: 12px;
                         Text {
                             text: "X11 Rootless Multi-Surface Docking";
                             color: root.accent_color;
@@ -680,8 +682,8 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 16px;
-                        spacing: 14px;
+                        padding: 14px;
+                        spacing: 12px;
                         Text {
                             text: "FastFlags Presets";
                             color: root.accent_color;
@@ -690,6 +692,7 @@ export component AppWindow inherits Window {
                         }
                         HorizontalLayout {
                             spacing: 8px;
+                            alignment: start;
                             SecondaryButton {
                                 text: "Default (Balanced)";
                                 active: root.fastflags_preset == "default";
@@ -729,8 +732,8 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 16px;
-                        spacing: 14px;
+                        padding: 14px;
+                        spacing: 12px;
                         Text {
                             text: "Optimizations & Telemetry";
                             color: root.accent_color;
@@ -753,8 +756,8 @@ export component AppWindow inherits Window {
                 // Custom FastFlags section
                 Card {
                     VerticalLayout {
-                        padding: 16px;
-                        spacing: 12px;
+                        padding: 14px;
+                        spacing: 10px;
                         Text {
                             text: "Custom FastFlags";
                             color: root.accent_color;
@@ -793,15 +796,15 @@ export component AppWindow inherits Window {
 
                         // List of custom flags
                         if root.custom_flags.length > 0: ScrollView {
-                            height: 140px;
+                            height: 130px;
                             VerticalLayout {
-                                spacing: 6px;
+                                spacing: 4px;
                                 for item in root.custom_flags: Rectangle {
                                     background: #18181c;
                                     border-color: #2e2e36;
                                     border-width: 1px;
-                                    border-radius: 10px;
-                                    height: 38px;
+                                    border-radius: 8px;
+                                    height: 34px;
 
                                     HorizontalLayout {
                                         padding-left: 12px;
@@ -834,9 +837,9 @@ export component AppWindow inherits Window {
                                         }
 
                                         Rectangle {
-                                            width: 76px;
-                                            height: 26px;
-                                            border-radius: 8px;
+                                            width: 68px;
+                                            height: 24px;
+                                            border-radius: 6px;
                                             background: ta_rm.has-hover ? #ef4444.mix(#18181c, 70%) : #25252b;
                                             border-color: ta_rm.has-hover ? #ef4444 : #35353e;
                                             border-width: 1px;
@@ -864,11 +867,11 @@ export component AppWindow inherits Window {
                         }
 
                         if root.custom_flags.length == 0: Rectangle {
-                            height: 44px;
+                            height: 40px;
                             background: #18181c;
                             border-color: #2e2e36;
                             border-width: 1px;
-                            border-radius: 10px;
+                            border-radius: 8px;
                             HorizontalLayout {
                                 alignment: center;
                                 Text {
@@ -889,8 +892,8 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 16px;
-                        spacing: 14px;
+                        padding: 14px;
+                        spacing: 12px;
                         Text {
                             text: "AI Agent Bridge (Model Context Protocol)";
                             color: root.accent_color;
@@ -912,7 +915,7 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 16px;
+                        padding: 14px;
                         spacing: 10px;
                         Text {
                             text: "Connecting Clients";
@@ -940,7 +943,7 @@ export component AppWindow inherits Window {
 
                 Card {
                     VerticalLayout {
-                        padding: 16px;
+                        padding: 14px;
                         spacing: 12px;
                         HorizontalLayout {
                             alignment: space-between;
@@ -1011,11 +1014,11 @@ export component AppWindow inherits Window {
 
         // Persistent Footer
         Rectangle {
-            height: 52px;
+            height: 48px;
             background: #202025;
             border-color: #2e2e36;
             border-width: 1px;
-            border-radius: 14px;
+            border-radius: 12px;
 
             HorizontalLayout {
                 padding-left: 16px;
