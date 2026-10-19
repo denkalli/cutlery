@@ -37,7 +37,9 @@ strip "${STAGE_DIR}/cutlery" 2>/dev/null || true
 mkdir -p "${STAGE_DIR}/custom-libs/x86_64" "${STAGE_DIR}/custom-libs/i386"
 cp "${PROJECT_ROOT}/custom-libs/wine_hook.so" "${STAGE_DIR}/custom-libs/"
 cp "${PROJECT_ROOT}/custom-libs/x86_64/wine_hook.so" "${STAGE_DIR}/custom-libs/x86_64/"
-cp "${PROJECT_ROOT}/custom-libs/i386/wine_hook.so" "${STAGE_DIR}/custom-libs/i386/"
+if [ -f "${PROJECT_ROOT}/custom-libs/i386/wine_hook.so" ]; then
+    cp "${PROJECT_ROOT}/custom-libs/i386/wine_hook.so" "${STAGE_DIR}/custom-libs/i386/"
+fi
 cp "${PROJECT_ROOT}/custom-libs/wine_hook.c" "${STAGE_DIR}/custom-libs/"
 cp "${PROJECT_ROOT}/custom-libs/Makefile" "${STAGE_DIR}/custom-libs/"
 
