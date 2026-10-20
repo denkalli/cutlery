@@ -3,6 +3,12 @@
 /bin/
 /dist/
 
+# Compiled native shared libraries
+*.so
+/custom-libs/*.so
+/custom-libs/x86_64/*.so
+/custom-libs/i386/*.so
+
 # Local testbed and Wine runtime data
 /sandbox/
 /wine-src/

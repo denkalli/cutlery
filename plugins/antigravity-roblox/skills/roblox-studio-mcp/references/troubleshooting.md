@@ -14,7 +14,7 @@ This guide covers error codes, crash scenarios, JSON-RPC transport issues, and r
      ```json
      "Roblox_Studio": {
        "command": "python3",
-       "args": ["/absolute/path/to/VinegarFork/mcp/bridge.py"]
+       "args": ["/absolute/path/to/cutlery/mcp/bridge.py"]
      }
      ```
   2. The bridge intercepts `server/discover` probes locally, passes `initialize` safely to Wine, and dynamically locates `StudioMCP.exe` across Roblox version updates.

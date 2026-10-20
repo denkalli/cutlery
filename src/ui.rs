@@ -40,18 +40,37 @@ fn get_antigravity_plugin_dir() -> Option<PathBuf> {
 }
 
 fn get_canonical_binary_path() -> PathBuf {
-    if let Ok(home) = std::env::var("HOME") {
-        let target = PathBuf::from(&home)
-            .join("Documentos/Antigravity/VinegarFork/target/release/cutlery");
-        if target.exists() {
-            return target;
-        }
-    }
+    // 1. Current executing binary if valid
     if let Ok(exe) = std::env::current_exe() {
-        if exe.exists() {
+        if let Ok(canonical) = exe.canonicalize() {
+            if canonical.exists() {
+                return canonical;
+            }
+        } else if exe.exists() {
             return exe;
         }
     }
+
+    // 2. Project root bin or release target
+    let root = get_root_dir();
+    let release_bin = root.join("target").join("release").join("cutlery");
+    if release_bin.exists() {
+        return release_bin;
+    }
+    let local_bin = root.join("bin").join("cutlery");
+    if local_bin.exists() {
+        return local_bin;
+    }
+
+    // 3. User standard local bin ~/.local/bin/cutlery
+    if let Ok(home) = std::env::var("HOME") {
+        let user_bin = PathBuf::from(home).join(".local").join("bin").join("cutlery");
+        if user_bin.exists() {
+            return user_bin;
+        }
+    }
+
+    // 4. System PATH fallback
     PathBuf::from("cutlery")
 }
 
@@ -221,6 +240,7 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
         .exists()
         || root.join("sandbox").join("dxvk").join("x64").join("d3d11.dll").exists();
 
+    crate::ensure_docking_hooks(&root.join("custom-libs"));
     let hook_present = root.join("custom-libs").join("wine_hook.so").exists()
         || root.join("custom-libs").join("x86_64").join("wine_hook.so").exists();
 
@@ -644,6 +664,7 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
                 let studio_exe = find_studio_exe(&prefix);
                 let dxvk_present = prefix.join("drive_c").join("windows").join("system32").join("d3d11.dll").exists()
                     || root.join("sandbox").join("dxvk").join("x64").join("d3d11.dll").exists();
+                crate::ensure_docking_hooks(&root.join("custom-libs"));
                 let hook_present = root.join("custom-libs").join("wine_hook.so").exists()
                     || root.join("custom-libs").join("x86_64").join("wine_hook.so").exists();
 

@@ -97,6 +97,83 @@ pub(crate) fn find_studio_exe(prefix: &Path) -> Option<PathBuf> {
 
 const DXVK_SHA256: &str = "40565b4a724aadc4433fa4e010b4b23916d9b1f1baeee64e17186db94f54e608";
 
+pub(crate) fn sanitize_studio_arg(arg: &str) -> Result<String, String> {
+    // 1. Check for null bytes, carriage returns, newlines, and forbidden control characters
+    if arg.chars().any(|c| c.is_control() || c == '\0') {
+        return Err("Argument contains forbidden control characters".to_string());
+    }
+
+    // 2. Reject quotes which could alter Windows command line quoting in Wine
+    if arg.contains('"') || arg.contains('\'') {
+        return Err("Argument contains forbidden quotes".to_string());
+    }
+
+    let trimmed = arg.trim();
+    if trimmed.is_empty() {
+        return Err("Argument is empty".to_string());
+    }
+
+    // 3. Protocol URI handler (roblox-studio: or roblox-studio://)
+    if trimmed.starts_with("roblox-studio:") {
+        // Safe character set for roblox-studio URI:
+        // alphanumeric, +, :, -, _, ., =, &, ?, /, %, ,, ~, @
+        let is_valid_uri = trimmed.chars().all(|c| {
+            c.is_ascii_alphanumeric()
+                || c == '+'
+                || c == ':'
+                || c == '-'
+                || c == '_'
+                || c == '.'
+                || c == '='
+                || c == '&'
+                || c == '?'
+                || c == '/'
+                || c == '%'
+                || c == ','
+                || c == '~'
+                || c == '@'
+        });
+
+        if !is_valid_uri {
+            return Err("roblox-studio URI contains invalid or unsafe characters".to_string());
+        }
+
+        return Ok(trimmed.to_string());
+    }
+
+    // 4. Place files (.rbxl / .rbxlx)
+    if trimmed.ends_with(".rbxl") || trimmed.ends_with(".rbxlx") {
+        if trimmed.chars().any(|c| c == '|' || c == '<' || c == '>' || c == '&' || c == ';') {
+            return Err("Place file path contains invalid shell characters".to_string());
+        }
+        return Ok(trimmed.to_string());
+    }
+
+    // 5. Standard CLI flags / parameters
+    if trimmed.chars().any(|c| c == ';' || c == '|' || c == '&' || c == '`' || c == '$' || c == '<' || c == '>') {
+        return Err("Argument contains unsafe shell metacharacters".to_string());
+    }
+
+    Ok(trimmed.to_string())
+}
+
+pub(crate) fn ensure_docking_hooks(custom_libs: &Path) {
+    let hook_x64 = custom_libs.join("x86_64").join("wine_hook.so");
+    let hook_x86 = custom_libs.join("i386").join("wine_hook.so");
+    let hook_root = custom_libs.join("wine_hook.so");
+
+    if (!hook_x64.exists() || !hook_x86.exists()) && !hook_root.exists() {
+        let makefile = custom_libs.join("Makefile");
+        let source_c = custom_libs.join("wine_hook.c");
+        if makefile.exists() && source_c.exists() {
+            println!("[Cutlery] Docking hook binaries not found. Compiling from source (custom-libs/wine_hook.c)...");
+            let _ = Command::new("make")
+                .args(["-C", &custom_libs.to_string_lossy(), "all"])
+                .status();
+        }
+    }
+}
+
 fn escape_desktop_exec(arg: &str) -> String {
     let mut escaped = String::with_capacity(arg.len() + 16);
     for c in arg.chars() {
@@ -237,8 +314,20 @@ pub(crate) fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
     // 5. Setup Wine & Universal X11 Docking Hook Environment
     let mut cmd = Command::new(&config.general.wine_binary);
     cmd.arg(&studio_exe);
-    for arg in args {
-        cmd.arg(arg);
+    for raw_arg in args {
+        match sanitize_studio_arg(raw_arg) {
+            Ok(clean_arg) => {
+                cmd.arg(clean_arg);
+            }
+            Err(e) => {
+                eprintln!("[Cutlery] Security error: {}", e);
+                eprintln!("[Cutlery] Rejected argument: '{}'", raw_arg);
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    format!("Security rejection: {}", e),
+                ));
+            }
+        }
     }
 
     cmd.env("WINEPREFIX", &prefix);
@@ -246,6 +335,7 @@ pub(crate) fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
 
     // Universal Xlib Docking Hook via LD_PRELOAD
     if config.kernel.docking_fix {
+        ensure_docking_hooks(&custom_libs);
         let hook_x64_dir = custom_libs.join("x86_64");
         let hook_x86_dir = custom_libs.join("i386");
         let wine_hook_fallback = if custom_libs.join("wine_hook.so").exists() {
@@ -498,6 +588,7 @@ fn cmd_doctor() {
     }
 
     // 3. Universal X11 Docking Hook
+    ensure_docking_hooks(&custom_libs);
     let wine_hook = if custom_libs.join("x86_64").join("wine_hook.so").exists() {
         custom_libs.join("x86_64").join("wine_hook.so")
     } else if custom_libs.join("wine_hook.so").exists() {
@@ -617,5 +708,60 @@ fn main() {
                 std::process::exit(1);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sanitize_valid_roblox_studio_uri() {
+        let uri = "roblox-studio:1+launchmode:edit+task:EditPlace+placeId:123456+universeId:789";
+        let res = sanitize_studio_arg(uri);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), uri);
+    }
+
+    #[test]
+    fn test_sanitize_rejects_quotes() {
+        let malicious_arg1 = "roblox-studio:1\" -malicious_flag";
+        assert!(sanitize_studio_arg(malicious_arg1).is_err());
+
+        let malicious_arg2 = "roblox-studio:1' -flag";
+        assert!(sanitize_studio_arg(malicious_arg2).is_err());
+    }
+
+    #[test]
+    fn test_sanitize_rejects_control_characters_and_newlines() {
+        let arg = "roblox-studio:1\n-task:EditPlace";
+        assert!(sanitize_studio_arg(arg).is_err());
+
+        let null_byte_arg = "roblox-studio:1\0bad";
+        assert!(sanitize_studio_arg(null_byte_arg).is_err());
+    }
+
+    #[test]
+    fn test_sanitize_rejects_shell_metacharacters() {
+        assert!(sanitize_studio_arg("roblox-studio:1; rm -rf /").is_err());
+        assert!(sanitize_studio_arg("roblox-studio:1 | ls").is_err());
+        assert!(sanitize_studio_arg("roblox-studio:1 & whoami").is_err());
+        assert!(sanitize_studio_arg("roblox-studio:1 `whoami`").is_err());
+        assert!(sanitize_studio_arg("roblox-studio:1 $(whoami)").is_err());
+    }
+
+    #[test]
+    fn test_sanitize_valid_place_file() {
+        let place = "/home/user/games/my_map.rbxl";
+        assert!(sanitize_studio_arg(place).is_ok());
+
+        let place_xml = "my_map.rbxlx";
+        assert!(sanitize_studio_arg(place_xml).is_ok());
+    }
+
+    #[test]
+    fn test_sanitize_standard_cli_flags() {
+        assert!(sanitize_studio_arg("-ide").is_ok());
+        assert!(sanitize_studio_arg("-task EditPlace").is_ok());
     }
 }
