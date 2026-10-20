@@ -1,4 +1,5 @@
 import { Switch, LineEdit, ScrollView } from "std-widgets.slint";
+import "../assets/fonts/CalSans-Regular.ttf";
 
 export struct FastFlagItem {
     name: string,
@@ -222,18 +223,231 @@ component TabButton inherits Rectangle {
     }
 }
 
+
+component ShadowText inherits Rectangle {
+    in property <string> text;
+    in property <color> text_color: #ffffff;
+    in property <string> font_family: "Cal Sans";
+    in property <length> font_size: 20px;
+    in property <int> font_weight: 400;
+    in property <TextHorizontalAlignment> horizontal_alignment: left;
+    in property <TextVerticalAlignment> vertical_alignment: top;
+    in property <TextWrap> wrap: no-wrap;
+
+    background: transparent;
+
+    // Wide diffused Gaussian drop shadow (Figma $effect1: x=0, y=4px, blur=4px, rgba(0,0,0,0.25))
+    // Outer ring (radius ~3px around (0, 4px))
+    Text {
+        x: -2.5px; y: 2.5px; width: parent.width; height: parent.height;
+        text: root.text; color: #00000008; font-family: root.font_family; font-size: root.font_size; font-weight: root.font_weight;
+        horizontal-alignment: root.horizontal_alignment; vertical-alignment: root.vertical_alignment; wrap: root.wrap;
+    }
+    Text {
+        x: 2.5px; y: 2.5px; width: parent.width; height: parent.height;
+        text: root.text; color: #00000008; font-family: root.font_family; font-size: root.font_size; font-weight: root.font_weight;
+        horizontal-alignment: root.horizontal_alignment; vertical-alignment: root.vertical_alignment; wrap: root.wrap;
+    }
+    Text {
+        x: -2.5px; y: 5.5px; width: parent.width; height: parent.height;
+        text: root.text; color: #00000008; font-family: root.font_family; font-size: root.font_size; font-weight: root.font_weight;
+        horizontal-alignment: root.horizontal_alignment; vertical-alignment: root.vertical_alignment; wrap: root.wrap;
+    }
+    Text {
+        x: 2.5px; y: 5.5px; width: parent.width; height: parent.height;
+        text: root.text; color: #00000008; font-family: root.font_family; font-size: root.font_size; font-weight: root.font_weight;
+        horizontal-alignment: root.horizontal_alignment; vertical-alignment: root.vertical_alignment; wrap: root.wrap;
+    }
+    Text {
+        x: -3px; y: 4px; width: parent.width; height: parent.height;
+        text: root.text; color: #00000008; font-family: root.font_family; font-size: root.font_size; font-weight: root.font_weight;
+        horizontal-alignment: root.horizontal_alignment; vertical-alignment: root.vertical_alignment; wrap: root.wrap;
+    }
+    Text {
+        x: 3px; y: 4px; width: parent.width; height: parent.height;
+        text: root.text; color: #00000008; font-family: root.font_family; font-size: root.font_size; font-weight: root.font_weight;
+        horizontal-alignment: root.horizontal_alignment; vertical-alignment: root.vertical_alignment; wrap: root.wrap;
+    }
+    Text {
+        x: 0px; y: 1.5px; width: parent.width; height: parent.height;
+        text: root.text; color: #00000009; font-family: root.font_family; font-size: root.font_size; font-weight: root.font_weight;
+        horizontal-alignment: root.horizontal_alignment; vertical-alignment: root.vertical_alignment; wrap: root.wrap;
+    }
+    Text {
+        x: 0px; y: 6.5px; width: parent.width; height: parent.height;
+        text: root.text; color: #00000009; font-family: root.font_family; font-size: root.font_size; font-weight: root.font_weight;
+        horizontal-alignment: root.horizontal_alignment; vertical-alignment: root.vertical_alignment; wrap: root.wrap;
+    }
+    // Mid ring (radius ~1.5px around (0, 4px))
+    Text {
+        x: -1.5px; y: 3px; width: parent.width; height: parent.height;
+        text: root.text; color: #0000000c; font-family: root.font_family; font-size: root.font_size; font-weight: root.font_weight;
+        horizontal-alignment: root.horizontal_alignment; vertical-alignment: root.vertical_alignment; wrap: root.wrap;
+    }
+    Text {
+        x: 1.5px; y: 3px; width: parent.width; height: parent.height;
+        text: root.text; color: #0000000c; font-family: root.font_family; font-size: root.font_size; font-weight: root.font_weight;
+        horizontal-alignment: root.horizontal_alignment; vertical-alignment: root.vertical_alignment; wrap: root.wrap;
+    }
+    Text {
+        x: -1.5px; y: 5px; width: parent.width; height: parent.height;
+        text: root.text; color: #0000000c; font-family: root.font_family; font-size: root.font_size; font-weight: root.font_weight;
+        horizontal-alignment: root.horizontal_alignment; vertical-alignment: root.vertical_alignment; wrap: root.wrap;
+    }
+    Text {
+        x: 1.5px; y: 5px; width: parent.width; height: parent.height;
+        text: root.text; color: #0000000c; font-family: root.font_family; font-size: root.font_size; font-weight: root.font_weight;
+        horizontal-alignment: root.horizontal_alignment; vertical-alignment: root.vertical_alignment; wrap: root.wrap;
+    }
+    // Core (0, 4px)
+    Text {
+        x: 0px; y: 4px; width: parent.width; height: parent.height;
+        text: root.text; color: #00000012; font-family: root.font_family; font-size: root.font_size; font-weight: root.font_weight;
+        horizontal-alignment: root.horizontal_alignment; vertical-alignment: root.vertical_alignment; wrap: root.wrap;
+    }
+
+    // Main foreground text
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        text: root.text;
+        color: root.text_color;
+        font-family: root.font_family;
+        font-size: root.font_size;
+        font-weight: root.font_weight;
+        horizontal-alignment: root.horizontal_alignment;
+        vertical-alignment: root.vertical_alignment;
+        wrap: root.wrap;
+    }
+}
+
+component WindowControlButton inherits Rectangle {
+    in property <color> dot_color;
+    callback clicked();
+
+    width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    background: ta.has-hover ? root.dot_color.brighter(20%) : root.dot_color;
+    border-width: 0px;
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component VerticalIconTab inherits Rectangle {
+    in property <image> icon;
+    in property <bool> active: false;
+    in property <color> accent_color: #3b82f6;
+    callback clicked();
+
+    width: 29px;
+    height: 29px;
+    background: transparent;
+    border-width: 0px;
+
+    // Diffused drop shadow behind icon (Figma $effect1: x=0, y=4, blur=4, rgba(0,0,0,0.25))
+    Image {
+        x: -1.5px; y: 3px; source: root.icon; width: 29px; height: 29px; colorize: #00000010;
+    }
+    Image {
+        x: 1.5px; y: 3px; source: root.icon; width: 29px; height: 29px; colorize: #00000010;
+    }
+    Image {
+        x: -1.5px; y: 5px; source: root.icon; width: 29px; height: 29px; colorize: #00000010;
+    }
+    Image {
+        x: 1.5px; y: 5px; source: root.icon; width: 29px; height: 29px; colorize: #00000010;
+    }
+    Image {
+        x: 0px; y: 4px; source: root.icon; width: 29px; height: 29px; colorize: #00000014;
+    }
+
+    Image {
+        x: 0px;
+        y: 0px;
+        source: root.icon;
+        width: 29px;
+        height: 29px;
+        colorize: root.active ? root.accent_color : (ta.has-hover ? root.accent_color.brighter(25%) : #ffffff);
+        animate colorize { duration: 150ms; }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component LaunchDecorlineButton inherits Rectangle {
+    in property <string> text: "Launch";
+    in property <color> accent_color: #3b82f6;
+    in property <length> idle_line_width: 180px;
+    in property <length> hover_line_width: 210px;
+    callback clicked();
+
+    width: 210px;
+    height: 71px;
+    background: transparent;
+
+    ShadowText {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 67px;
+        text: root.text;
+        text_color: #ffffff;
+        font_family: "Cal Sans";
+        font_size: 64px;
+        font_weight: 400;
+        horizontal_alignment: center;
+        vertical_alignment: center;
+    }
+
+    // Decorline: White in idle, expands and transitions to accent_color on hover
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: parent.height - 2px;
+        height: 2px;
+        width: ta.has-hover ? root.hover_line_width : root.idle_line_width;
+        background: ta.has-hover ? root.accent_color : #ffffff;
+        drop-shadow-offset-x: 0px;
+        drop-shadow-offset-y: 4px;
+        drop-shadow-blur: 8px;
+        drop-shadow-color: #00000060;
+        animate background { duration: 150ms; }
+        animate width { duration: 180ms; easing: ease-out; }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
 export component AppWindow inherits Window {
     title: "Cutlery Control Center";
     icon: @image-url("../assets/cutlery.png");
-    preferred-width: 1200px;
-    preferred-height: 750px;
-    min-width: 1040px;
-    min-height: 650px;
+    no-frame: true;
+    width: 1250px;
+    height: 700px;
     background: #18181c;
+
+    // Window Callbacks
+    callback drag_window();
+    callback minimize_window();
+    callback maximize_window();
+    callback close_window();
 
     // Callbacks
     callback launch_studio();
     callback save_settings();
+    callback apply_settings();
+    callback revert_settings();
+    callback confirm_proceed(int, bool);
     callback check_updates();
     callback open_prefix();
     callback run_doctor();
@@ -245,6 +459,14 @@ export component AppWindow inherits Window {
     callback open_antigravity_folder();
     callback configure_claude();
     callback test_mcp();
+
+    // Dynamic client version
+    in-out property <string> client_version: "v1.2.0";
+
+    // Experimental & Prompt State
+    in-out property <bool> experimental_ui: false;
+    in-out property <bool> show_confirm_dialog: false;
+    in-out property <int> confirm_action: 0; // 0 = Close Window, 1 = Launch Studio
 
     // Dynamic accent color
     in-out property <string> accent_name: "blue";
@@ -274,6 +496,43 @@ export component AppWindow inherits Window {
     in-out property <bool> preinit_shield: true;
     in-out property <bool> always_open_ui: true;
 
+    // Baseline saved properties for dirty tracking
+    in-out property <string> saved_accent_name: "blue";
+    in-out property <int> saved_target_fps: 60;
+    in-out property <bool> saved_dummy_composition: true;
+    in-out property <bool> saved_dxvk_async: true;
+    in-out property <bool> saved_ntsync_enabled: true;
+    in-out property <bool> saved_fsync_enabled: true;
+    in-out property <bool> saved_docking_fix: true;
+    in-out property <bool> saved_force_x11: true;
+    in-out property <bool> saved_telemetry_bypass: true;
+    in-out property <bool> saved_gpu_light_culling: true;
+    in-out property <string> saved_fastflags_preset: "default";
+    in-out property <bool> saved_mcp_enabled: true;
+    in-out property <bool> saved_preinit_shield: true;
+    in-out property <bool> saved_always_open_ui: true;
+    in-out property <bool> saved_experimental_ui: false;
+    in-out property <bool> flags_dirty: false;
+
+    // Reactive Dirty State Computation
+    in-out property <bool> is_dirty: 
+        root.accent_name != root.saved_accent_name ||
+        root.target_fps != root.saved_target_fps ||
+        root.dummy_composition != root.saved_dummy_composition ||
+        root.dxvk_async != root.saved_dxvk_async ||
+        root.ntsync_enabled != root.saved_ntsync_enabled ||
+        root.fsync_enabled != root.saved_fsync_enabled ||
+        root.docking_fix != root.saved_docking_fix ||
+        root.force_x11 != root.saved_force_x11 ||
+        root.telemetry_bypass != root.saved_telemetry_bypass ||
+        root.gpu_light_culling != root.saved_gpu_light_culling ||
+        root.fastflags_preset != root.saved_fastflags_preset ||
+        root.mcp_enabled != root.saved_mcp_enabled ||
+        root.preinit_shield != root.saved_preinit_shield ||
+        root.always_open_ui != root.saved_always_open_ui ||
+        root.experimental_ui != root.saved_experimental_ui ||
+        root.flags_dirty;
+
     // Custom FastFlags
     in-out property <[FastFlagItem]> custom_flags: [];
     in-out property <string> new_flag_name: "";
@@ -293,12 +552,142 @@ export component AppWindow inherits Window {
     in-out property <string> claude_status: "Not Configured";
     in-out property <string> mcp_test_status: "Bridge Ready • StudioMCP.exe Handshake Ready";
 
-    VerticalLayout {
-        padding: 16px;
-        spacing: 12px;
+    Rectangle {
+        width: 100%;
+        height: 100%;
 
-        // Header
-        HorizontalLayout {
+        // ==========================================
+        // LAYER 1 (Figma 2:2): GenBg
+        // ==========================================
+        if root.experimental_ui : Rectangle {
+            x: 0px;
+            y: 0px;
+            width: 1250px;
+            height: 700px;
+            background: #262626;
+            border-color: #050404;
+            border-width: 1px;
+            border-radius: 8px;
+        }
+
+        // ==========================================
+        // LAYER 2 (Figma 2:149 + 2:10 Mask): GeneralBg (ONLY on Tab 0)
+        // ==========================================
+        if root.experimental_ui && root.active_tab == 0 : Image {
+            x: 5px;
+            y: 3px;
+            width: 1240px;
+            height: 694px;
+            source: @image-url("../assets/general_bg.png");
+            image-fit: fill;
+        }
+
+        // ==========================================
+        // LAYER 3 (Figma 2:144): Changelog (ONLY on Tab 0)
+        // ==========================================
+        if root.experimental_ui && root.active_tab == 0 : Rectangle {
+            x: 0px;
+            y: 0px;
+            width: 1250px;
+            height: 700px;
+            background: transparent;
+
+            // Left vertical Decorline (Figma 2:143: x=322, y=200, w=1, h=295)
+            Rectangle {
+                x: 322px;
+                y: 200px;
+                width: 1px;
+                height: 295px;
+                background: #ffffff;
+                drop-shadow-offset-x: 0px;
+                drop-shadow-offset-y: 4px;
+                drop-shadow-blur: 8px;
+                drop-shadow-color: #00000060;
+            }
+
+            // Title "Changelog" (Figma 2:140: x=341, y=141, w=567, h=31, Cal Sans 24px)
+            ShadowText {
+                x: 341px;
+                y: 141px;
+                width: 567px;
+                height: 31px;
+                text: "Changelog";
+                text_color: #ffffff;
+                font_family: "Cal Sans";
+                font_size: 24px;
+                font_weight: 400;
+                horizontal_alignment: center;
+            }
+
+            // Subtitle SemVer (Figma 2:142: x=341, y=172, w=567, h=18, Cal Sans 14px)
+            ShadowText {
+                x: 341px;
+                y: 172px;
+                width: 567px;
+                height: 18px;
+                text: root.client_version + " (latest-release)";
+                text_color: #ffffff;
+                font_family: "Cal Sans";
+                font_size: 14px;
+                font_weight: 400;
+                horizontal_alignment: center;
+            }
+
+            // Changelog Body Text (Figma 2:141: x=341, y=195, w=567, h=306, 15px, centered)
+            ShadowText {
+                x: 341px;
+                y: 195px;
+                width: 567px;
+                height: 306px;
+                text: "Complete Visual Remake: Modern Figma-grade interface with vertical icon navigation, dynamic page headers, and customizable accent themes.\n\nDynamic Version Detection: Automatically reads the installed Roblox Studio and Cutlery client version from your prefix directory.\n\nFrameless Hero Launch: Quick-launch Roblox Studio with interactive hover decorline expansion, unapplied changes guard, and automatic launcher exit on launch.\n\nUniversal MCP Bridge & DXVK v3.1.1: Full protocol support for AI agents, pre-init shield, asynchronous shader pipelines, and NTSync kernel synchronization.";
+                text_color: #ffffff;
+                font_family: "";
+                font_size: 15px;
+                font_weight: 400;
+                horizontal_alignment: center;
+                wrap: word-wrap;
+            }
+        }
+
+        // ==========================================
+        // LAYER 4A (Figma 2:136): Launch Button (ONLY on Tab 0)
+        // ==========================================
+        if root.experimental_ui && root.active_tab == 0 : LaunchDecorlineButton {
+            x: 993px;
+            y: 594px;
+            width: 210px;
+            height: 71px;
+            text: "Launch";
+            idle_line_width: 180px;
+            hover_line_width: 210px;
+            accent_color: root.accent_color;
+            clicked => { root.launch_studio(); }
+        }
+
+        // ==========================================
+        // LAYER 4B (Figma 7:8): Update Button (ONLY on Tab 0, visual only)
+        // ==========================================
+        if root.experimental_ui && root.active_tab == 0 : LaunchDecorlineButton {
+            x: 46px;
+            y: 593px;
+            width: 217px;
+            height: 72px;
+            text: "Update";
+            idle_line_width: 181px;
+            hover_line_width: 217px;
+            accent_color: root.accent_color;
+            clicked => {
+                // Visual-only button per specification (no action bound yet)
+            }
+        }
+
+        // ==========================================
+        // Classic UI Elements (Header & Nav Bar)
+        // ==========================================
+        if !root.experimental_ui : HorizontalLayout {
+            x: 16px;
+            y: 12px;
+            width: root.width - 130px;
             height: 40px;
             alignment: space-between;
 
@@ -326,7 +715,7 @@ export component AppWindow inherits Window {
                     }
                 }
                 PillBadge {
-                    text: "v1.1.0";
+                    text: root.client_version;
                     badge_bg: root.accent_color.mix(#000000, 80%);
                     badge_fg: root.accent_color.brighter(30%);
                 }
@@ -348,13 +737,15 @@ export component AppWindow inherits Window {
             }
         }
 
-        // Top Navigation Bar
-        Rectangle {
+        if !root.experimental_ui : Rectangle {
+            x: 16px;
+            y: 58px;
+            width: root.width - 32px;
+            height: 40px;
             background: #202025;
             border-color: #2e2e36;
             border-width: 1px;
             border-radius: 10px;
-            height: 40px;
 
             HorizontalLayout {
                 padding-left: 6px;
@@ -406,15 +797,20 @@ export component AppWindow inherits Window {
             }
         }
 
-        // Main Tab Content Area
-        Rectangle {
-            vertical-stretch: 1;
-            background: transparent;
+        // ==========================================
+        // Main Tab Content Area (Classic UI Tabs 0-5 & Experimental UI Tabs 1-5)
+        // ==========================================
+        if !root.experimental_ui || root.active_tab != 0 : Rectangle {
+            x: root.experimental_ui ? 52px : 16px;
+            y: root.experimental_ui ? 46px : 106px;
+            width: root.experimental_ui ? 1184px : root.width - 32px;
+            height: root.experimental_ui ? 640px : root.height - 170px;
+            clip: true;
 
-            // Tab 0: General
-            if root.active_tab == 0: VerticalLayout {
+            // Classic UI Tab 0: 3 Cards
+            if !root.experimental_ui && root.active_tab == 0: VerticalLayout {
+                alignment: start;
                 spacing: 12px;
-
                 Card {
                     VerticalLayout {
                         padding: 14px;
@@ -493,6 +889,19 @@ export component AppWindow inherits Window {
                     }
                 }
             }
+
+            // Tabs 1 to 5: Settings Workspace (No GeneralBg, Clean Dark theme)
+            if root.active_tab != 0 : ScrollView {
+                width: 100%;
+                height: 100%;
+
+                VerticalLayout {
+                    padding-left: root.experimental_ui ? 8px : 0px;
+                    padding-right: root.experimental_ui ? 16px : 8px;
+                    padding-top: root.experimental_ui ? 8px : 0px;
+                    padding-bottom: 24px;
+                    spacing: 12px;
+                    alignment: start;
 
             // Tab 1: Graphics
             if root.active_tab == 1: VerticalLayout {
@@ -1060,6 +1469,7 @@ export component AppWindow inherits Window {
                 }
             }
 
+
             // Tab 5: Doctor
             if root.active_tab == 5: VerticalLayout {
                 spacing: 12px;
@@ -1132,10 +1542,281 @@ export component AppWindow inherits Window {
                     }
                 }
             }
+
+                if root.experimental_ui : Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 12px;
+                        Text {
+                            text: "Environment Status";
+                            color: root.accent_color;
+                            font-size: 14px;
+                            font-weight: 700;
+                        }
+                        HorizontalLayout {
+                            spacing: 16px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "Studio Version:"; color: #9ca3af; font-size: 11px; }
+                                Text { text: root.studio_version; color: #ffffff; font-size: 12px; font-weight: 600; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "System Wine:"; color: #9ca3af; font-size: 11px; }
+                                Text { text: root.wine_version; color: #ffffff; font-size: 12px; font-weight: 600; }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "Wine Prefix Path:"; color: #9ca3af; font-size: 11px; }
+                                Text { text: root.prefix_path; color: #ffffff; font-size: 12px; font-weight: 600; }
+                            }
+                        }
+                    }
+                }
+
+                if root.experimental_ui : Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 12px;
+                        Text {
+                            text: "Quick Management Actions";
+                            color: root.accent_color;
+                            font-size: 14px;
+                            font-weight: 700;
+                            vertical-alignment: center;
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+                            ActionButton {
+                                text: "Check Studio Updates";
+                                clicked => { root.check_updates(); }
+                            }
+                            ActionButton {
+                                text: "Open Prefix Directory";
+                                clicked => { root.open_prefix(); }
+                            }
+                            ActionButton {
+                                text: "Re-provision Prefix";
+                                clicked => { root.check_updates(); }
+                            }
+                        }
+                    }
+                }
+
+                if root.experimental_ui : Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 12px;
+                        Text {
+                            text: "Launcher Behavior";
+                            color: root.accent_color;
+                            font-size: 14px;
+                            font-weight: 700;
+                        }
+                        ToggleRow {
+                            title: "Open Cutlery Settings on launch";
+                            description: "Opening Cutlery from the desktop app drawer opens this dashboard instead of launching directly.";
+                            checked <=> root.always_open_ui;
+                        }
+                    }
+                }
+
+                // Experimental Features toggle card
+                Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 12px;
+                        Text {
+                            text: "Experimental Features";
+                            color: root.accent_color;
+                            font-size: 14px;
+                            font-weight: 700;
+                        }
+                        ToggleRow {
+                            title: "Experimental UI (Figma CutleryUIRemake)";
+                            description: "Switches to vertical icon sidebar layout matching Figma design. Requires Cutlery restart.";
+                            checked <=> root.experimental_ui;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+        // ==========================================
+        // LAYER 6 (Figma 2:138): Tabs Options (x=9, y=251..436, 29x29 each, 8px gap)
+        // ==========================================
+        if root.experimental_ui : VerticalIconTab {
+            x: 9px;
+            y: 251px;
+            icon: @image-url("../assets/icons/tab_general.svg");
+            active: root.active_tab == 0;
+            accent_color: root.accent_color;
+            clicked => { root.active_tab = 0; }
+        }
+        if root.experimental_ui : VerticalIconTab {
+            x: 9px;
+            y: 288px;
+            icon: @image-url("../assets/icons/tab_graphics.svg");
+            active: root.active_tab == 1;
+            accent_color: root.accent_color;
+            clicked => { root.active_tab = 1; }
+        }
+        if root.experimental_ui : VerticalIconTab {
+            x: 9px;
+            y: 325px;
+            icon: @image-url("../assets/icons/tab_kernel.svg");
+            active: root.active_tab == 2;
+            accent_color: root.accent_color;
+            clicked => { root.active_tab = 2; }
+        }
+        if root.experimental_ui : VerticalIconTab {
+            x: 9px;
+            y: 362px;
+            icon: @image-url("../assets/icons/tab_fastflags.svg");
+            active: root.active_tab == 3;
+            accent_color: root.accent_color;
+            clicked => { root.active_tab = 3; }
+        }
+        if root.experimental_ui : VerticalIconTab {
+            x: 9px;
+            y: 399px;
+            icon: @image-url("../assets/icons/tab_mcp.svg");
+            active: root.active_tab == 4;
+            accent_color: root.accent_color;
+            clicked => { root.active_tab = 4; }
+        }
+        if root.experimental_ui : VerticalIconTab {
+            x: 9px;
+            y: 436px;
+            icon: @image-url("../assets/icons/tab_doctor.svg");
+            active: root.active_tab == 5;
+            accent_color: root.accent_color;
+            clicked => {
+                root.active_tab = 5;
+                root.run_doctor();
+            }
         }
 
-        // Persistent Footer (Unified ActionButton components for perfect proportion)
+        // ==========================================
+        // LAYER 7 (Figma 2:139): Page Title (x=535, y=3, w=180, h=27)
+        // ==========================================
+        if root.experimental_ui : ShadowText {
+            x: 535px;
+            y: 3px;
+            width: 180px;
+            height: 24px;
+            text: root.active_tab == 0 ? "General" :
+                  (root.active_tab == 1 ? "Graphics" :
+                  (root.active_tab == 2 ? "Kernel" :
+                  (root.active_tab == 3 ? "FastFlags" :
+                  (root.active_tab == 4 ? "Universal MCP" : "Doctor"))));
+            text_color: #ffffff;
+            font_family: "Cal Sans";
+            font_size: 24px;
+            font_weight: 400;
+            horizontal_alignment: center;
+        }
+        if root.experimental_ui : Rectangle {
+            x: 535px;
+            y: 30px;
+            width: 180px;
+            height: 1px;
+            background: root.accent_color;
+            drop-shadow-offset-x: 0px;
+            drop-shadow-offset-y: 4px;
+            drop-shadow-blur: 8px;
+            drop-shadow-color: #00000060;
+        }
+
+        // ==========================================
+        // LAYER 8 (Figma 2:135): Header Cutlery (x=9, y=5, w=103, h=32)
+        // ==========================================
+        if root.experimental_ui : Image {
+            x: 9px;
+            y: 7px;
+            width: 29px;
+            height: 29px;
+            source: @image-url("../assets/cutlery.png");
+        }
+        if root.experimental_ui : ShadowText {
+            x: 45px;
+            y: 5px;
+            width: 67px;
+            height: 21px;
+            text: "Cutlery";
+            text_color: #ffffff;
+            font_family: "Cal Sans";
+            font_size: 20px;
+            font_weight: 400;
+        }
+        if root.experimental_ui : Rectangle {
+            x: 45px;
+            y: 27px;
+            width: 67px;
+            height: 1px;
+            background: root.accent_color;
+            drop-shadow-offset-x: 0px;
+            drop-shadow-offset-y: 4px;
+            drop-shadow-blur: 8px;
+            drop-shadow-color: #00000060;
+        }
+        if root.experimental_ui : ShadowText {
+            x: 46px;
+            y: 28px;
+            width: 90px;
+            height: 12px;
+            text: "Version: " + root.client_version;
+            text_color: #ffffff;
+            font_family: "Cal Sans";
+            font_size: 7px;
+            font_weight: 400;
+        }
+
+        // ==========================================
+        // Top Bar Drag Area (x=0, y=0, w=1140, h=38)
+        // Uses Slint's native WindowMoveArea so dragging the top bar moves the window
+        // without locking mouse grab or blocking clicks anywhere in the UI.
+        // ==========================================
         Rectangle {
+            x: 0px;
+            y: 0px;
+            width: 1140px;
+            height: 38px;
+            background: transparent;
+            WindowMoveArea {}
+        }
+
+        // ==========================================
+        // LAYER 9 (Figma 2:137): Min/Max/Close Buttons (x=1154, y=7, w=86, h=18)
+        // ==========================================
+        WindowControlButton {
+            x: 1154px;
+            y: 7px;
+            dot_color: #d7a12c; // Minimize (Yellow/Amber)
+            clicked => { root.minimize_window(); }
+        }
+        WindowControlButton {
+            x: 1188px;
+            y: 7px;
+            dot_color: #74df4d; // Maximize (Green)
+            clicked => { root.maximize_window(); }
+        }
+        WindowControlButton {
+            x: 1222px;
+            y: 7px;
+            dot_color: #d22b2b; // Close (Red)
+            clicked => { root.close_window(); }
+        }
+
+        // ==========================================
+        // Classic Persistent Footer (only when !root.experimental_ui)
+        // ==========================================
+        if !root.experimental_ui : Rectangle {
+            x: 16px;
+            y: root.height - 56px;
+            width: root.width - 32px;
             height: 48px;
             background: #202025;
             border-color: #2e2e36;
@@ -1149,7 +1830,6 @@ export component AppWindow inherits Window {
                 padding-bottom: 8px;
                 alignment: space-between;
 
-                // Status message
                 VerticalLayout {
                     alignment: center;
                     Text {
@@ -1161,7 +1841,6 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                // Action buttons - Vertically centered, identical geometry, no highlight bleed
                 VerticalLayout {
                     alignment: center;
                     HorizontalLayout {
@@ -1181,6 +1860,135 @@ export component AppWindow inherits Window {
                             accent_color: root.accent_color;
                             min_btn_width: 120px;
                             clicked => { root.launch_studio(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ==========================================
+    // 6. Floating Apply Bar (Dirty State)
+    // ==========================================
+    if root.is_dirty : Rectangle {
+        x: (root.width - self.width) / 2;
+        y: root.height - 70px;
+        width: 330px;
+        height: 46px;
+        border-radius: 23px;
+        background: #1b1b22;
+        border-color: root.accent_color;
+        border-width: 1px;
+        drop-shadow-blur: 16px;
+        drop-shadow-color: #000000;
+
+        HorizontalLayout {
+            padding-left: 18px;
+            padding-right: 14px;
+            spacing: 12px;
+            alignment: center;
+
+            VerticalLayout {
+                alignment: center;
+                Text {
+                    text: "Unapplied changes";
+                    color: #ffffff;
+                    font-size: 12px;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                ActionButton {
+                    text: "Revert";
+                    clicked => { root.revert_settings(); }
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                ActionButton {
+                    text: "Apply";
+                    primary: true;
+                    accent_color: root.accent_color;
+                    clicked => { root.apply_settings(); }
+                }
+            }
+        }
+    }
+
+    // ==========================================
+    // 7. Unsaved Changes Confirmation Modal
+    // ==========================================
+    if root.show_confirm_dialog : Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000.mix(transparent, 40%);
+
+        TouchArea {
+            // Absorb underlying click events
+        }
+
+        // Modal Box
+        Rectangle {
+            x: (root.width - self.width) / 2;
+            y: (root.height - self.height) / 2;
+            width: 440px;
+            height: 180px;
+            background: #1e1e26;
+            border-color: #3b3b48;
+            border-width: 1px;
+            border-radius: 12px;
+            drop-shadow-blur: 24px;
+            drop-shadow-color: #000000;
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 14px;
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: root.confirm_action == 0 ? "Unapplied Changes - Close Window?" : "Unapplied Changes - Launch Studio?";
+                        color: #ffffff;
+                        font-size: 15px;
+                        font-weight: 700;
+                    }
+                    Text {
+                        text: "You have unapplied configuration changes. What would you like to do before proceeding?";
+                        color: #9ca3af;
+                        font-size: 12px;
+                        wrap: word-wrap;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+
+                    ActionButton {
+                        text: "Cancel";
+                        clicked => {
+                            root.show_confirm_dialog = false;
+                        }
+                    }
+                    ActionButton {
+                        text: "Discard & Proceed";
+                        clicked => {
+                            root.show_confirm_dialog = false;
+                            root.confirm_proceed(root.confirm_action, false);
+                        }
+                    }
+                    ActionButton {
+                        text: "Apply & Proceed";
+                        primary: true;
+                        accent_color: root.accent_color;
+                        clicked => {
+                            root.show_confirm_dialog = false;
+                            root.confirm_proceed(root.confirm_action, true);
                         }
                     }
                 }

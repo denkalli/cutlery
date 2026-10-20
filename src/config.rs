@@ -99,13 +99,28 @@ impl Default for McpConfig {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExperimentalConfig {
+    pub experimental_ui: bool,
+}
+
+impl Default for ExperimentalConfig {
+    fn default() -> Self {
+        Self {
+            experimental_ui: false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct CutleryConfig {
     pub general: GeneralConfig,
     pub graphics: GraphicsConfig,
     pub kernel: KernelConfig,
     pub fastflags: FastFlagsConfig,
     pub mcp: McpConfig,
+    pub experimental: ExperimentalConfig,
 }
 
 impl CutleryConfig {
@@ -208,3 +223,38 @@ impl CutleryConfig {
         let _ = fs::write(dxvk_conf, conf_content);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_experimental_config_default() {
+        let cfg = CutleryConfig::default();
+        assert!(!cfg.experimental.experimental_ui);
+    }
+
+    #[test]
+    fn test_experimental_config_deserialize_missing() {
+        let toml_str = r#"
+            [general]
+            prefix_path = ""
+            wine_binary = "wine"
+            always_open_ui = true
+        "#;
+        let cfg: CutleryConfig = toml::from_str(toml_str).unwrap();
+        assert!(!cfg.experimental.experimental_ui);
+    }
+
+    #[test]
+    fn test_experimental_config_toggle_and_serialize() {
+        let mut cfg = CutleryConfig::default();
+        cfg.experimental.experimental_ui = true;
+        let toml_str = toml::to_string_pretty(&cfg).unwrap();
+        assert!(toml_str.contains("experimental_ui = true"));
+
+        let reloaded: CutleryConfig = toml::from_str(&toml_str).unwrap();
+        assert!(reloaded.experimental.experimental_ui);
+    }
+}
+

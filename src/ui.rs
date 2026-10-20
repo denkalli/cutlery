@@ -1,11 +1,33 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
+use slint::winit_030::WinitWindowAccessor;
 
 use crate::config::CutleryConfig;
-use crate::{cmd_install, cmd_run, find_studio_exe, get_root_dir};
+use crate::{cmd_install, find_studio_exe, get_root_dir};
 
 slint::include_modules!();
+
+fn get_installed_client_version() -> String {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let ver_path = parent.join("version");
+            if ver_path.exists() {
+                if let Ok(content) = std::fs::read_to_string(ver_path) {
+                    let trimmed = content.trim();
+                    if !trimmed.is_empty() {
+                        return if trimmed.starts_with('v') {
+                            trimmed.to_string()
+                        } else {
+                            format!("v{}", trimmed)
+                        };
+                    }
+                }
+            }
+        }
+    }
+    format!("v{}", env!("CARGO_PKG_VERSION"))
+}
 
 fn get_antigravity_plugin_dir() -> Option<PathBuf> {
     if let Ok(home) = std::env::var("HOME") {
@@ -57,6 +79,109 @@ fn check_antigravity_link() -> (bool, String) {
     } else {
         (false, "Plugin directory not found (~/.gemini/config/plugins/roblox-studio)".to_string())
     }
+}
+
+fn do_save_settings(app: &AppWindow, prefix: &Path, flags_model: &ModelRc<FastFlagItem>) {
+    let mut cfg = CutleryConfig::load();
+    cfg.graphics.accent_color = app.get_accent_name().to_string();
+    cfg.graphics.target_fps = app.get_target_fps();
+    cfg.graphics.dummy_composition = app.get_dummy_composition();
+    cfg.graphics.dxvk_async = app.get_dxvk_async();
+    cfg.kernel.ntsync = app.get_ntsync_enabled();
+    cfg.kernel.fsync = app.get_fsync_enabled();
+    cfg.kernel.docking_fix = app.get_docking_fix();
+    cfg.kernel.force_x11 = app.get_force_x11();
+    cfg.fastflags.telemetry_bypass = app.get_telemetry_bypass();
+    cfg.fastflags.gpu_light_culling = app.get_gpu_light_culling();
+    cfg.fastflags.preset = app.get_fastflags_preset().to_string();
+
+    cfg.fastflags.custom.clear();
+    for i in 0..flags_model.row_count() {
+        if let Some(item) = flags_model.row_data(i) {
+            cfg.fastflags.custom.insert(item.name.to_string(), item.value.to_string());
+        }
+    }
+
+    cfg.mcp.enabled = app.get_mcp_enabled();
+    cfg.mcp.preinit_shield = app.get_preinit_shield();
+    cfg.general.always_open_ui = app.get_always_open_ui();
+    cfg.experimental.experimental_ui = app.get_experimental_ui();
+
+    let _ = cfg.save();
+
+    // If studio is installed, sync to its version directory
+    if let Some(exe) = find_studio_exe(prefix) {
+        if let Some(studio_dir) = exe.parent() {
+            cfg.sync_studio_files(studio_dir);
+        }
+    }
+
+    // Synchronize baseline properties so is_dirty evaluates to false
+    app.set_saved_accent_name(app.get_accent_name());
+    app.set_saved_target_fps(app.get_target_fps());
+    app.set_saved_dummy_composition(app.get_dummy_composition());
+    app.set_saved_dxvk_async(app.get_dxvk_async());
+    app.set_saved_ntsync_enabled(app.get_ntsync_enabled());
+    app.set_saved_fsync_enabled(app.get_fsync_enabled());
+    app.set_saved_docking_fix(app.get_docking_fix());
+    app.set_saved_force_x11(app.get_force_x11());
+    app.set_saved_telemetry_bypass(app.get_telemetry_bypass());
+    app.set_saved_gpu_light_culling(app.get_gpu_light_culling());
+    app.set_saved_fastflags_preset(app.get_fastflags_preset());
+    app.set_saved_mcp_enabled(app.get_mcp_enabled());
+    app.set_saved_preinit_shield(app.get_preinit_shield());
+    app.set_saved_always_open_ui(app.get_always_open_ui());
+    app.set_saved_experimental_ui(app.get_experimental_ui());
+    app.set_flags_dirty(false);
+
+    app.set_status_text("Settings saved successfully.".into());
+}
+
+fn do_revert_settings(
+    app: &AppWindow,
+    initial_custom_flags: &std::collections::BTreeMap<String, String>,
+    flags_model: &std::rc::Rc<VecModel<FastFlagItem>>,
+) {
+    let saved_acc = app.get_saved_accent_name();
+    let (_, acc_col) = match saved_acc.as_str() {
+        "cyan" => ("cyan", slint::Color::from_rgb_u8(14, 165, 233)),
+        "indigo" => ("indigo", slint::Color::from_rgb_u8(99, 102, 241)),
+        "emerald" => ("emerald", slint::Color::from_rgb_u8(16, 185, 129)),
+        "amber" => ("amber", slint::Color::from_rgb_u8(245, 158, 11)),
+        "violet" => ("violet", slint::Color::from_rgb_u8(139, 92, 246)),
+        "rose" => ("rose", slint::Color::from_rgb_u8(244, 63, 94)),
+        _ => ("blue", slint::Color::from_rgb_u8(59, 130, 246)),
+    };
+    app.set_accent_name(saved_acc.clone());
+    app.set_accent_color(acc_col);
+    app.set_target_fps(app.get_saved_target_fps());
+    app.set_dummy_composition(app.get_saved_dummy_composition());
+    app.set_dxvk_async(app.get_saved_dxvk_async());
+    app.set_ntsync_enabled(app.get_saved_ntsync_enabled());
+    app.set_fsync_enabled(app.get_saved_fsync_enabled());
+    app.set_docking_fix(app.get_saved_docking_fix());
+    app.set_force_x11(app.get_saved_force_x11());
+    app.set_telemetry_bypass(app.get_saved_telemetry_bypass());
+    app.set_gpu_light_culling(app.get_saved_gpu_light_culling());
+    app.set_fastflags_preset(app.get_saved_fastflags_preset());
+    app.set_mcp_enabled(app.get_saved_mcp_enabled());
+    app.set_preinit_shield(app.get_saved_preinit_shield());
+    app.set_always_open_ui(app.get_saved_always_open_ui());
+    app.set_experimental_ui(app.get_saved_experimental_ui());
+
+    // Restore custom flags
+    while flags_model.row_count() > 0 {
+        flags_model.remove(0);
+    }
+    for (k, v) in initial_custom_flags {
+        flags_model.push(FastFlagItem {
+            name: k.clone().into(),
+            value: v.clone().into(),
+        });
+    }
+    app.set_flags_dirty(false);
+
+    app.set_status_text("Changes reverted to saved settings.".into());
 }
 
 pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
@@ -118,24 +243,44 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
     };
     app.set_accent_name(acc_name.into());
     app.set_accent_color(acc_col);
+    app.set_saved_accent_name(acc_name.into());
 
     app.set_target_fps(config.graphics.target_fps);
+    app.set_saved_target_fps(config.graphics.target_fps);
+
     app.set_dummy_composition(config.graphics.dummy_composition);
+    app.set_saved_dummy_composition(config.graphics.dummy_composition);
+
     app.set_dxvk_async(config.graphics.dxvk_async);
+    app.set_saved_dxvk_async(config.graphics.dxvk_async);
+
     app.set_dpi_scale(config.graphics.dpi_scale.into());
 
     app.set_ntsync_enabled(config.kernel.ntsync);
+    app.set_saved_ntsync_enabled(config.kernel.ntsync);
+
     app.set_fsync_enabled(config.kernel.fsync);
+    app.set_saved_fsync_enabled(config.kernel.fsync);
+
     app.set_docking_fix(config.kernel.docking_fix);
+    app.set_saved_docking_fix(config.kernel.docking_fix);
+
     app.set_force_x11(config.kernel.force_x11);
+    app.set_saved_force_x11(config.kernel.force_x11);
 
     app.set_telemetry_bypass(config.fastflags.telemetry_bypass);
+    app.set_saved_telemetry_bypass(config.fastflags.telemetry_bypass);
+
     app.set_gpu_light_culling(config.fastflags.gpu_light_culling);
-    app.set_fastflags_preset(config.fastflags.preset.into());
+    app.set_saved_gpu_light_culling(config.fastflags.gpu_light_culling);
+
+    app.set_fastflags_preset(config.fastflags.preset.clone().into());
+    app.set_saved_fastflags_preset(config.fastflags.preset.into());
 
     // Custom FastFlags Model
+    let initial_custom_flags = config.fastflags.custom.clone();
     let custom_flags_model = std::rc::Rc::new(VecModel::default());
-    for (k, v) in &config.fastflags.custom {
+    for (k, v) in &initial_custom_flags {
         custom_flags_model.push(FastFlagItem {
             name: k.clone().into(),
             value: v.clone().into(),
@@ -144,8 +289,18 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
     app.set_custom_flags(ModelRc::from(custom_flags_model.clone()));
 
     app.set_mcp_enabled(config.mcp.enabled);
+    app.set_saved_mcp_enabled(config.mcp.enabled);
+
     app.set_preinit_shield(config.mcp.preinit_shield);
+    app.set_saved_preinit_shield(config.mcp.preinit_shield);
+
     app.set_always_open_ui(config.general.always_open_ui);
+    app.set_saved_always_open_ui(config.general.always_open_ui);
+
+    app.set_experimental_ui(config.experimental.experimental_ui);
+    app.set_saved_experimental_ui(config.experimental.experimental_ui);
+
+    app.set_flags_dirty(false);
 
     // Antigravity MCP Plugin state
     let (ag_linked, ag_path_str) = check_antigravity_link();
@@ -166,12 +321,56 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
     };
     app.set_status_text(status_init.into());
 
+    // Dynamic client version from installation directory / package
+    app.set_client_version(get_installed_client_version().into());
+
     // 3. Callbacks
     let app_weak = app.as_weak();
     let prefix_clone = prefix.clone();
 
+    // Window Dragging & Control Buttons (Figma TopBar controls)
+    let app_weak_drag = app_weak.clone();
+    app.on_drag_window(move || {
+        if let Some(app) = app_weak_drag.upgrade() {
+            app.window().with_winit_window(|winit_win| {
+                let _ = winit_win.drag_window();
+            });
+        }
+    });
+
+    let app_weak_min = app_weak.clone();
+    app.on_minimize_window(move || {
+        if let Some(app) = app_weak_min.upgrade() {
+            app.window().set_minimized(true);
+        }
+    });
+
+    let app_weak_max = app_weak.clone();
+    app.on_maximize_window(move || {
+        // Window is fixed size (1250x700) to preserve GeneralBg mask quality;
+        // ensure window stays unmaximized at 1250x700.
+        if let Some(app) = app_weak_max.upgrade() {
+            app.window().set_maximized(false);
+        }
+    });
+
+    let app_weak_manual_close = app_weak.clone();
+    app.on_close_window(move || {
+        if let Some(app) = app_weak_manual_close.upgrade() {
+            if app.get_is_dirty() {
+                app.set_confirm_action(0);
+                app.set_show_confirm_dialog(true);
+            } else {
+                let _ = app.hide();
+                let _ = slint::quit_event_loop();
+                std::process::exit(0);
+            }
+        }
+    });
+
     // Callback: Add Custom FastFlag
     let flags_model_add = custom_flags_model.clone();
+    let app_weak_add = app_weak.clone();
     app.on_add_custom_flag(move |name, value| {
         let name_str = name.trim().to_string();
         let value_str = value.trim().to_string();
@@ -192,17 +391,24 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
                 name: name_str.into(),
                 value: value_str.into(),
             });
+            if let Some(app) = app_weak_add.upgrade() {
+                app.set_flags_dirty(true);
+            }
         }
     });
 
     // Callback: Remove Custom FastFlag
     let flags_model_rm = custom_flags_model.clone();
+    let app_weak_rm = app_weak.clone();
     app.on_remove_custom_flag(move |name| {
         let name_str = name.as_str();
         for i in 0..flags_model_rm.row_count() {
             if let Some(item) = flags_model_rm.row_data(i) {
                 if item.name.as_str() == name_str {
                     flags_model_rm.remove(i);
+                    if let Some(app) = app_weak_rm.upgrade() {
+                        app.set_flags_dirty(true);
+                    }
                     break;
                 }
             }
@@ -314,95 +520,88 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
 
     // Callback: Save Settings
     let flags_model_save = custom_flags_model.clone();
-    app.on_save_settings({
-        let app_weak = app_weak.clone();
-        let prefix = prefix_clone.clone();
-        let flags_model = flags_model_save.clone();
-        move || {
-            if let Some(app) = app_weak.upgrade() {
-                let mut cfg = CutleryConfig::load();
-                cfg.graphics.accent_color = app.get_accent_name().to_string();
-                cfg.graphics.target_fps = app.get_target_fps();
-                cfg.graphics.dummy_composition = app.get_dummy_composition();
-                cfg.graphics.dxvk_async = app.get_dxvk_async();
-                cfg.kernel.ntsync = app.get_ntsync_enabled();
-                cfg.kernel.fsync = app.get_fsync_enabled();
-                cfg.kernel.docking_fix = app.get_docking_fix();
-                cfg.kernel.force_x11 = app.get_force_x11();
-                cfg.fastflags.telemetry_bypass = app.get_telemetry_bypass();
-                cfg.fastflags.gpu_light_culling = app.get_gpu_light_culling();
-                cfg.fastflags.preset = app.get_fastflags_preset().to_string();
-
-                cfg.fastflags.custom.clear();
-                for i in 0..flags_model.row_count() {
-                    if let Some(item) = flags_model.row_data(i) {
-                        cfg.fastflags.custom.insert(item.name.to_string(), item.value.to_string());
-                    }
-                }
-
-                cfg.mcp.enabled = app.get_mcp_enabled();
-                cfg.mcp.preinit_shield = app.get_preinit_shield();
-                cfg.general.always_open_ui = app.get_always_open_ui();
-
-                let _ = cfg.save();
-
-                // If studio is installed, sync to its version directory
-                if let Some(exe) = find_studio_exe(&prefix) {
-                    if let Some(studio_dir) = exe.parent() {
-                        cfg.sync_studio_files(studio_dir);
-                    }
-                }
-
-                app.set_status_text("Settings saved successfully.".into());
-            }
+    let app_weak_save = app_weak.clone();
+    let prefix_save = prefix_clone.clone();
+    app.on_save_settings(move || {
+        if let Some(app) = app_weak_save.upgrade() {
+            do_save_settings(&app, &prefix_save, &ModelRc::from(flags_model_save.clone()));
         }
     });
 
-    // Callback: Launch Studio
-    let flags_model_launch = custom_flags_model.clone();
-    app.on_launch_studio({
-        let app_weak = app_weak.clone();
-        let prefix = prefix_clone.clone();
-        let flags_model = flags_model_launch.clone();
-        move || {
-            if let Some(app) = app_weak.upgrade() {
-                // Save settings first
-                let mut cfg = CutleryConfig::load();
-                cfg.graphics.accent_color = app.get_accent_name().to_string();
-                cfg.graphics.target_fps = app.get_target_fps();
-                cfg.graphics.dummy_composition = app.get_dummy_composition();
-                cfg.graphics.dxvk_async = app.get_dxvk_async();
-                cfg.kernel.ntsync = app.get_ntsync_enabled();
-                cfg.kernel.fsync = app.get_fsync_enabled();
-                cfg.kernel.docking_fix = app.get_docking_fix();
-                cfg.kernel.force_x11 = app.get_force_x11();
-                cfg.fastflags.telemetry_bypass = app.get_telemetry_bypass();
-                cfg.fastflags.gpu_light_culling = app.get_gpu_light_culling();
-                cfg.fastflags.preset = app.get_fastflags_preset().to_string();
+    // Callback: Apply Settings (Floating Bar)
+    let flags_model_apply = custom_flags_model.clone();
+    let app_weak_apply = app_weak.clone();
+    let prefix_apply = prefix_clone.clone();
+    app.on_apply_settings(move || {
+        if let Some(app) = app_weak_apply.upgrade() {
+            do_save_settings(&app, &prefix_apply, &ModelRc::from(flags_model_apply.clone()));
+        }
+    });
 
-                cfg.fastflags.custom.clear();
-                for i in 0..flags_model.row_count() {
-                    if let Some(item) = flags_model.row_data(i) {
-                        cfg.fastflags.custom.insert(item.name.to_string(), item.value.to_string());
-                    }
-                }
+    // Callback: Revert Settings (Floating Bar)
+    let flags_model_revert = custom_flags_model.clone();
+    let initial_flags_revert = initial_custom_flags.clone();
+    let app_weak_revert = app_weak.clone();
+    app.on_revert_settings(move || {
+        if let Some(app) = app_weak_revert.upgrade() {
+            do_revert_settings(&app, &initial_flags_revert, &flags_model_revert);
+        }
+    });
 
-                cfg.mcp.enabled = app.get_mcp_enabled();
-                cfg.mcp.preinit_shield = app.get_preinit_shield();
-                cfg.general.always_open_ui = app.get_always_open_ui();
+    // Callback: Launch Studio (with dirty check prompt)
+    let app_weak_launch = app_weak.clone();
+    app.on_launch_studio(move || {
+        if let Some(app) = app_weak_launch.upgrade() {
+            if app.get_is_dirty() {
+                app.set_confirm_action(1); // 1 = Launch Studio
+                app.set_show_confirm_dialog(true);
+                return;
+            }
+            app.set_status_text("Launching Roblox Studio...".into());
+            let _ = app.hide();
+            if let Ok(exe) = std::env::current_exe() {
+                let _ = Command::new(exe).arg("run").spawn();
+            }
+            let _ = slint::quit_event_loop();
+            std::process::exit(0);
+        }
+    });
 
-                let _ = cfg.save();
-                if let Some(exe) = find_studio_exe(&prefix) {
-                    if let Some(studio_dir) = exe.parent() {
-                        cfg.sync_studio_files(studio_dir);
-                    }
-                }
+    // Window Close Request Interception (with dirty check prompt)
+    let app_weak_close = app_weak.clone();
+    app.window().on_close_requested(move || {
+        if let Some(app) = app_weak_close.upgrade() {
+            if app.get_is_dirty() {
+                app.set_confirm_action(0); // 0 = Close Window
+                app.set_show_confirm_dialog(true);
+                return slint::CloseRequestResponse::KeepWindowShown;
+            }
+        }
+        slint::CloseRequestResponse::HideWindow
+    });
 
+    // Callback: Confirm Proceed (Prompt Dialog: Discard vs Apply)
+    let app_weak_confirm = app_weak.clone();
+    let prefix_confirm = prefix_clone.clone();
+    let flags_model_confirm = custom_flags_model.clone();
+    app.on_confirm_proceed(move |action, save| {
+        if let Some(app) = app_weak_confirm.upgrade() {
+            if save {
+                do_save_settings(&app, &prefix_confirm, &ModelRc::from(flags_model_confirm.clone()));
+            }
+            if action == 0 {
+                // Close Window
+                let _ = app.hide();
+                let _ = slint::quit_event_loop();
+                std::process::exit(0);
+            } else if action == 1 {
+                // Launch Studio
                 app.set_status_text("Launching Roblox Studio...".into());
                 let _ = app.hide();
-
-                // Launch Roblox Studio
-                let _ = cmd_run(&[]);
+                if let Ok(exe) = std::env::current_exe() {
+                    let _ = Command::new(exe).arg("run").spawn();
+                }
+                let _ = slint::quit_event_loop();
                 std::process::exit(0);
             }
         }
@@ -454,6 +653,16 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
                 app.set_doc_dxvk(if dxvk_present { "OK (v3.1.1)" } else { "Auto-fetch" }.into());
                 app.set_doc_prefix(if studio_exe.is_some() { "OK (Installed)" } else { "Needs Install" }.into());
                 app.set_status_text("Diagnostics refreshed successfully.".into());
+            }
+        }
+    });
+
+    let app_weak_winit = app_weak.clone();
+    let _ = slint::spawn_local(async move {
+        if let Some(app) = app_weak_winit.upgrade() {
+            if let Ok(winit_window) = app.window().winit_window().await {
+                winit_window.set_decorations(false);
+                winit_window.set_resizable(false);
             }
         }
     });
