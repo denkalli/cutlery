@@ -1,0 +1,16 @@
+name = "OLED Black"
+author = "Cutlery"
+base = "dark"
+
+[colors]
+window-bg = "#000000"
+window-border = "#1a1a1a"
+surface = "#0a0a0a"
+surface-hover = "#141414"
+surface-sunken = "#000000"
+overlay-bg = "#0a0a0a"
+border = "#1f1f1f"
+border-strong = "#2e2e2e"
+status-glass = "#000000b3"
+card-glass = "#000000b3"
+sidebar-glass = "#00000099"

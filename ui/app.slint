@@ -1,11 +1,11 @@
 import "../assets/fonts/CalSans-Regular.ttf";
 
 import { Palette } from "std-widgets.slint";
-import { Theme } from "theme.slint";
-import { Settings, Env, Status, Shell, Actions, FastFlagItem, DoctorCheck, ChangelogSection, PendingAction, ResizeEdge } from "state.slint";
+import { Theme, ThemePalette } from "theme.slint";
+import { Settings, Env, Status, Shell, Actions, FastFlagItem, DoctorCheck, ChangelogSection, PendingAction, ThemeOption } from "state.slint";
 import { TitleBar } from "components/title-bar.slint";
 import { Sidebar, NavItem } from "components/sidebar.slint";
-import { StatusBar, DirtyBar, ConfirmDialog, UpdateDialog, ResizeGrips } from "components/overlays.slint";
+import { StatusBar, DirtyBar, ConfirmDialog, UpdateDialog } from "components/overlays.slint";
 import { HomePage } from "pages/home.slint";
 import { GraphicsPage } from "pages/graphics.slint";
 import { KernelPage } from "pages/kernel.slint";
@@ -13,7 +13,7 @@ import { FastFlagsPage } from "pages/fastflags.slint";
 import { McpPage } from "pages/mcp.slint";
 import { DoctorPage } from "pages/doctor.slint";
 
-export { Settings, Env, Status, Shell, Actions, FastFlagItem, DoctorCheck, ChangelogSection, PendingAction, ResizeEdge }
+export { Theme, ThemePalette, ThemeOption, Settings, Env, Status, Shell, Actions, FastFlagItem, DoctorCheck, ChangelogSection, PendingAction }
 
 export component AppWindow inherits Window {
     title: "Cutlery";
@@ -24,6 +24,9 @@ export component AppWindow inherits Window {
     min-height: 600px;
     preferred-width: 1250px;
     preferred-height: 700px;
+    // Frameless edge resizing is handled by Slint's winit backend, which hands the drag to the
+    // window manager before the press reaches any TouchArea (no stuck pointer grab).
+    resize-border-width: Shell.maximized ? 0px : 6px;
 
     property <[NavItem]> pages: [
         { icon: @image-url("../assets/icons/tab_general.svg"), label: "General" },
@@ -34,8 +37,13 @@ export component AppWindow inherits Window {
         { icon: @image-url("../assets/icons/tab_doctor.svg"), label: "Doctor" },
     ];
 
+    // std-widgets (ScrollView, Switch, Spinner) follow the theme's light/dark base.
+    property <bool> dark-theme: Theme.dark;
+    changed dark-theme => {
+        Palette.color-scheme = self.dark-theme ? ColorScheme.dark : ColorScheme.light;
+    }
     init => {
-        Palette.color-scheme = ColorScheme.dark;
+        Palette.color-scheme = Theme.dark ? ColorScheme.dark : ColorScheme.light;
     }
 
     Rectangle {
@@ -48,11 +56,11 @@ export component AppWindow inherits Window {
         if Shell.page == 0: Image {
             width: 100%;
             height: 100%;
-            source: @image-url("../assets/general_bg.png");
+            source: Theme.has-home-bg ? Theme.home-bg : @image-url("../assets/general_bg.png");
             image-fit: cover;
         }
         if Shell.page == 0: Rectangle {
-            background: @linear-gradient(180deg, #00000099 0%, transparent 16%, transparent 72%, #000000a6 100%);
+            background: @linear-gradient(180deg, Theme.hero-top 0%, Theme.hero-top.transparentize(100%) 16%, Theme.hero-bottom.transparentize(100%) 72%, Theme.hero-bottom 100%);
         }
 
         VerticalLayout {
@@ -97,7 +105,5 @@ export component AppWindow inherits Window {
         if Shell.update-open: UpdateDialog { }
 
         if Shell.confirm-open: ConfirmDialog { }
-
-        if !Shell.maximized: ResizeGrips { }
     }
 }

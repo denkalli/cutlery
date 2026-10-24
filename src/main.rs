@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 
 pub mod config;
+pub mod theme;
 pub mod ui;
 pub mod update;
 

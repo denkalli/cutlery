@@ -1,11 +1,11 @@
 import { Spinner } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
-import { Settings, Status, Env, Shell, Actions, PendingAction, ResizeEdge } from "../state.slint";
+import { Settings, Status, Env, Shell, Actions, PendingAction } from "../state.slint";
 import { ActionButton } from "buttons.slint";
 
 export component StatusBar inherits Rectangle {
     height: 28px;
-    background: #00000066;
+    background: Theme.status-glass;
 
     HorizontalLayout {
         padding-left: 14px;
@@ -41,11 +41,11 @@ export component StatusBar inherits Rectangle {
 export component DirtyBar inherits Rectangle {
     height: 48px;
     border-radius: self.height / 2;
-    background: #1b1b22;
+    background: Theme.overlay-bg;
     border-color: Theme.accent;
     border-width: 1px;
     drop-shadow-blur: 16px;
-    drop-shadow-color: #000000;
+    drop-shadow-color: Theme.shadow;
 
     HorizontalLayout {
         padding-left: 20px;
@@ -87,12 +87,12 @@ export component ConfirmDialog inherits Rectangle {
     Rectangle {
         width: 460px;
         height: box.preferred-height;
-        background: #1e1e26;
+        background: Theme.overlay-bg;
         border-color: Theme.border-strong;
         border-width: 1px;
         border-radius: Theme.radius-lg;
         drop-shadow-blur: 24px;
-        drop-shadow-color: #000000;
+        drop-shadow-color: Theme.shadow;
 
         box := VerticalLayout {
             padding: 20px;
@@ -152,12 +152,12 @@ export component UpdateDialog inherits Rectangle {
     Rectangle {
         width: 440px;
         height: box.preferred-height;
-        background: #1e1e26;
+        background: Theme.overlay-bg;
         border-color: Theme.border-strong;
         border-width: 1px;
         border-radius: Theme.radius-lg;
         drop-shadow-blur: 24px;
-        drop-shadow-color: #000000;
+        drop-shadow-color: Theme.shadow;
 
         box := VerticalLayout {
             padding: 20px;
@@ -206,29 +206,4 @@ export component UpdateDialog inherits Rectangle {
             }
         }
     }
-}
-
-component ResizeGrip inherits TouchArea {
-    in property <ResizeEdge> edge;
-
-    pointer-event(event) => {
-        if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
-            Actions.start-resize(root.edge);
-        }
-    }
-}
-
-// Invisible grips along the edges of the frameless window.
-export component ResizeGrips inherits Rectangle {
-    property <length> t: 5px;
-    property <length> c: 12px;
-
-    ResizeGrip { edge: ResizeEdge.north; mouse-cursor: ns-resize; x: c; y: 0; width: parent.width - 2 * c; height: t; }
-    ResizeGrip { edge: ResizeEdge.south; mouse-cursor: ns-resize; x: c; y: parent.height - t; width: parent.width - 2 * c; height: t; }
-    ResizeGrip { edge: ResizeEdge.west; mouse-cursor: ew-resize; x: 0; y: c; width: t; height: parent.height - 2 * c; }
-    ResizeGrip { edge: ResizeEdge.east; mouse-cursor: ew-resize; x: parent.width - t; y: c; width: t; height: parent.height - 2 * c; }
-    ResizeGrip { edge: ResizeEdge.north-west; mouse-cursor: nwse-resize; x: 0; y: 0; width: c; height: c; }
-    ResizeGrip { edge: ResizeEdge.south-east; mouse-cursor: nwse-resize; x: parent.width - c; y: parent.height - c; width: c; height: c; }
-    ResizeGrip { edge: ResizeEdge.north-east; mouse-cursor: nesw-resize; x: parent.width - c; y: 0; width: c; height: c; }
-    ResizeGrip { edge: ResizeEdge.south-west; mouse-cursor: nesw-resize; x: 0; y: parent.height - c; width: c; height: c; }
 }

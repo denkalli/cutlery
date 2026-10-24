@@ -37,7 +37,7 @@ component ChangelogBlock inherits VerticalLayout {
         }
         Text {
             text: item;
-            color: #ffffffe6;
+            color: Theme.text-soft;
             font-size: 14px;
             wrap: word-wrap;
             horizontal-stretch: 1;
@@ -63,7 +63,7 @@ export component HomePage inherits Rectangle {
                 Rectangle {
                     width: min(root.width - 160px, 640px);
                     height: min(root.height - 240px, 400px);
-                    background: #00000080;
+                    background: Theme.card-glass;
                     border-radius: 16px;
 
                     HorizontalLayout {

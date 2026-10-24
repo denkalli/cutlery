@@ -21,11 +21,24 @@ export struct ChangelogSection {
     items: [string],
 }
 
+// A theme in the Appearance picker. `has-accent` is false when the theme lets the
+// user pick the accent chip.
+export struct ThemeOption {
+    id: string,
+    name: string,
+    author: string,
+    bg: color,
+    surface: color,
+    text: color,
+    has-accent: bool,
+    accent: color,
+}
+
 export enum PendingAction { close, launch, update }
 
-export enum ResizeEdge { north, south, east, west, north-east, north-west, south-east, south-west }
 
 export global Settings {
+    in-out property <string> theme-name: "cutlery-dark";
     in-out property <string> accent-name: "blue";
     in-out property <bool> always-open-ui: true;
 
@@ -66,6 +79,10 @@ export global Env {
     in property <bool> ntsync-available;
     in property <[DoctorCheck]> checks;
     in property <[ChangelogSection]> changelog;
+    in property <[ThemeOption]> themes;
+    in property <string> themes-dir;
+    // One "file: error" line per user theme that failed to load.
+    in property <string> theme-errors;
 
     in property <bool> antigravity-linked;
     in property <string> antigravity-path;
@@ -98,6 +115,8 @@ export global Actions {
     callback accept-update();
     callback decline-update();
     callback open-prefix();
+    callback open-themes-folder();
+    callback reload-themes();
     callback run-doctor();
     callback link-antigravity();
     callback open-antigravity-folder();
@@ -108,5 +127,4 @@ export global Actions {
     callback minimize-window();
     callback toggle-maximize();
     callback close-window();
-    callback start-resize(ResizeEdge);
 }

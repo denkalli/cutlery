@@ -6,6 +6,42 @@ export struct AccentOption {
     color: color,
 }
 
+// Every color a theme can set. Rust fills it from the selected theme (src/theme.rs);
+// the defaults below are the built-in "Cutlery Dark" theme.
+export struct ThemePalette {
+    dark: bool,
+    window-bg: color,
+    window-border: color,
+    surface: color,
+    surface-hover: color,
+    surface-sunken: color,
+    overlay-bg: color,
+    border: color,
+    border-strong: color,
+    scrim: color,
+    shadow: color,
+    hover-tint: color,
+    status-glass: color,
+    card-glass: color,
+    sidebar-glass: color,
+    hero-top: color,
+    hero-bottom: color,
+    text: color,
+    text-soft: color,
+    text-muted: color,
+    text-faint: color,
+    ok: color,
+    info: color,
+    warn: color,
+    danger: color,
+    // A theme may fix the accent; otherwise Settings.accent-name picks it.
+    has-accent: bool,
+    accent: color,
+    // Optional Home artwork replacing assets/general_bg.png.
+    has-home-bg: bool,
+    home-bg: image,
+}
+
 export global Theme {
     out property <[AccentOption]> accents: [
         { name: "blue", label: "Blue", color: #3b82f6 },
@@ -16,25 +52,67 @@ export global Theme {
         { name: "violet", label: "Violet", color: #8b5cf6 },
         { name: "rose", label: "Rose", color: #f43f5e },
     ];
-    out property <color> accent: accent-for(Settings.accent-name);
 
-    out property <color> window-bg: #202024;
-    out property <color> window-border: #050404;
-    out property <color> surface: #28282e;
-    out property <color> surface-hover: #2f2f37;
-    out property <color> surface-sunken: #1b1b1f;
-    out property <color> border: #34343c;
-    out property <color> border-strong: #42424e;
-    out property <color> scrim: #00000099;
+    in property <ThemePalette> palette: {
+        dark: true,
+        window-bg: #202024,
+        window-border: #050404,
+        surface: #28282e,
+        surface-hover: #2f2f37,
+        surface-sunken: #1b1b1f,
+        overlay-bg: #1e1e26,
+        border: #34343c,
+        border-strong: #42424e,
+        scrim: #00000099,
+        shadow: #000000,
+        hover-tint: #ffffff14,
+        status-glass: #00000066,
+        card-glass: #00000080,
+        sidebar-glass: #00000059,
+        hero-top: #00000099,
+        hero-bottom: #000000a6,
+        text: #ffffff,
+        text-soft: #ffffffe6,
+        text-muted: #9ca3af,
+        text-faint: #6b7280,
+        ok: #34d399,
+        info: #38bdf8,
+        warn: #fbbf24,
+        danger: #f87171,
+    };
 
-    out property <color> text: #ffffff;
-    out property <color> text-muted: #9ca3af;
-    out property <color> text-faint: #6b7280;
+    out property <bool> dark: palette.dark;
+    out property <bool> fixed-accent: palette.has-accent;
+    out property <color> accent: palette.has-accent ? palette.accent : accent-for(Settings.accent-name);
+    out property <bool> has-home-bg: palette.has-home-bg;
+    out property <image> home-bg: palette.home-bg;
 
-    out property <color> ok: #34d399;
-    out property <color> info: #38bdf8;
-    out property <color> warn: #fbbf24;
-    out property <color> danger: #f87171;
+    out property <color> window-bg: palette.window-bg;
+    out property <color> window-border: palette.window-border;
+    out property <color> surface: palette.surface;
+    out property <color> surface-hover: palette.surface-hover;
+    out property <color> surface-sunken: palette.surface-sunken;
+    out property <color> overlay-bg: palette.overlay-bg;
+    out property <color> border: palette.border;
+    out property <color> border-strong: palette.border-strong;
+    out property <color> scrim: palette.scrim;
+    out property <color> shadow: palette.shadow;
+    out property <color> hover-tint: palette.hover-tint;
+    out property <color> status-glass: palette.status-glass;
+    out property <color> card-glass: palette.card-glass;
+    out property <color> sidebar-glass: palette.sidebar-glass;
+    out property <color> hero-top: palette.hero-top;
+    out property <color> hero-bottom: palette.hero-bottom;
+
+    out property <color> text: palette.text;
+    out property <color> text-soft: palette.text-soft;
+    out property <color> text-muted: palette.text-muted;
+    out property <color> text-faint: palette.text-faint;
+
+    out property <color> ok: palette.ok;
+    out property <color> info: palette.info;
+    out property <color> warn: palette.warn;
+    out property <color> danger: palette.danger;
 
     out property <string> display-font: "Cal Sans";
     out property <length> radius-sm: 6px;

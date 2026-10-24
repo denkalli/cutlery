@@ -1,0 +1,16 @@
+name = "Midnight"
+author = "Cutlery"
+base = "dark"
+
+[colors]
+window-bg = "#0f1424"
+window-border = "#05070d"
+surface = "#161d33"
+surface-hover = "#1d2642"
+surface-sunken = "#0b1020"
+overlay-bg = "#141b30"
+border = "#232d4d"
+border-strong = "#2f3b63"
+text-muted = "#94a3c4"
+text-faint = "#5f6b8c"
+accent = "#7c9cff"

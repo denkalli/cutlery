@@ -10,10 +10,10 @@ use std::process::Command;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use slint::winit_030::{winit::window::ResizeDirection, WinitWindowAccessor};
 use slint::ComponentHandle;
 
 use crate::config::CutleryConfig;
+use crate::theme::{self, ThemeDef};
 use crate::update::{self, Release, StudioCheck};
 use crate::{cmd_install, find_studio_exe, get_root_dir};
 use env::EnvReport;
@@ -35,6 +35,12 @@ struct Ctx {
     saved: RefCell<CutleryConfig>,
     /// Cutlery release offered in the UpdateDialog; filled by a worker thread.
     offered_release: Arc<Mutex<Option<Release>>>,
+    /// Built-in and user themes, reloaded by the "Reload Themes" button.
+    themes: RefCell<Vec<ThemeDef>>,
+    /// Problems from the last theme load, shown under the theme picker.
+    theme_errors: RefCell<Vec<String>>,
+    /// Id of the theme currently painted, so other settings edits skip re-applying it.
+    applied_theme: RefCell<String>,
 }
 
 pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
@@ -62,6 +68,7 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
     let (linked, link_path) = integrations::check_antigravity_link();
     env.set_antigravity_linked(linked);
     env.set_antigravity_path(link_path.into());
+    env.set_themes_dir(theme::user_dir().to_string_lossy().to_string().into());
 
     state::push_config(&app, &config);
     let ctx = Rc::new(Ctx {
@@ -73,7 +80,11 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
         prefix,
         saved: RefCell::new(config),
         offered_release: Arc::new(Mutex::new(None)),
+        themes: RefCell::new(Vec::new()),
+        theme_errors: RefCell::new(Vec::new()),
+        applied_theme: RefCell::new(String::new()),
     });
+    reload_themes(&app, &ctx);
 
     register_settings_callbacks(&app, &ctx);
     register_action_callbacks(&app, &ctx);
@@ -121,6 +132,36 @@ fn refresh_environment(app: &AppWindow, target: ProbeTarget, message: Option<Str
     });
 }
 
+/// Re-reads the built-in and user themes, then re-applies the selected one.
+fn reload_themes(app: &AppWindow, ctx: &Ctx) {
+    let (themes, errors) = theme::load_all(&theme::user_dir());
+    let options: Vec<ThemeOption> = themes.iter().map(state::theme_option).collect();
+    app.global::<Env>().set_themes(slint::ModelRc::new(slint::VecModel::from(options)));
+    *ctx.themes.borrow_mut() = themes;
+    *ctx.theme_errors.borrow_mut() = errors;
+    apply_selected_theme(app, ctx);
+}
+
+/// Paints the UI with the theme picked in Settings (a live preview until Apply).
+/// An unknown id falls back to the default theme without changing the setting.
+fn apply_selected_theme(app: &AppWindow, ctx: &Ctx) {
+    let selected = app.global::<Settings>().get_theme_name();
+    let themes = ctx.themes.borrow();
+    let mut errors = ctx.theme_errors.borrow().clone();
+    let theme = match themes.iter().find(|t| t.id == selected.as_str()) {
+        Some(theme) => Some(theme),
+        None => {
+            errors.push(format!("theme \"{}\" not found, showing {}", selected, theme::DEFAULT_THEME));
+            themes.iter().find(|t| t.id == theme::DEFAULT_THEME)
+        }
+    };
+    if let Some(theme) = theme {
+        app.global::<Theme>().set_palette(state::theme_palette(theme));
+    }
+    app.global::<Env>().set_theme_errors(errors.join("\n").into());
+    *ctx.applied_theme.borrow_mut() = selected.to_string();
+}
+
 fn apply_settings(app: &AppWindow, ctx: &Ctx) {
     let cfg = state::pull_config(app, &ctx.saved.borrow());
     match cfg.save() {
@@ -138,6 +179,7 @@ fn apply_settings(app: &AppWindow, ctx: &Ctx) {
 
 fn revert_settings(app: &AppWindow, ctx: &Ctx) {
     state::push_config(app, &ctx.saved.borrow());
+    apply_selected_theme(app, ctx);
     state::refresh_dirty(app, &ctx.saved.borrow());
     set_status(app, "Changes reverted.");
 }
@@ -274,6 +316,9 @@ fn register_settings_callbacks(app: &AppWindow, ctx: &Rc<Ctx>) {
         let ctx = ctx.clone();
         move || {
             if let Some(app) = weak.upgrade() {
+                if app.global::<Settings>().get_theme_name() != ctx.applied_theme.borrow().as_str() {
+                    apply_selected_theme(&app, &ctx);
+                }
                 state::refresh_dirty(&app, &ctx.saved.borrow());
             }
         }
@@ -427,6 +472,35 @@ fn register_action_callbacks(app: &AppWindow, ctx: &Rc<Ctx>) {
         }
     });
 
+    actions.on_open_themes_folder({
+        let weak = app.as_weak();
+        move || {
+            let dir = theme::user_dir();
+            match std::fs::create_dir_all(&dir) {
+                Ok(()) => {
+                    let _ = Command::new("xdg-open").arg(&dir).spawn();
+                }
+                Err(e) => {
+                    if let Some(app) = weak.upgrade() {
+                        set_status(&app, format!("Could not create {}: {}", dir.display(), e));
+                    }
+                }
+            }
+        }
+    });
+
+    actions.on_reload_themes({
+        let weak = app.as_weak();
+        let ctx = ctx.clone();
+        move || {
+            if let Some(app) = weak.upgrade() {
+                reload_themes(&app, &ctx);
+                let count = ctx.themes.borrow().len();
+                set_status(&app, format!("{} themes loaded.", count));
+            }
+        }
+    });
+
     actions.on_link_antigravity({
         let weak = app.as_weak();
         move || {
@@ -503,27 +577,6 @@ fn register_window_callbacks(app: &AppWindow) {
                 if guard_unapplied(&app, PendingAction::Close) {
                     quit(&app);
                 }
-            }
-        }
-    });
-
-    actions.on_start_resize({
-        let weak = app.as_weak();
-        move |edge| {
-            if let Some(app) = weak.upgrade() {
-                let direction = match edge {
-                    ResizeEdge::North => ResizeDirection::North,
-                    ResizeEdge::South => ResizeDirection::South,
-                    ResizeEdge::East => ResizeDirection::East,
-                    ResizeEdge::West => ResizeDirection::West,
-                    ResizeEdge::NorthEast => ResizeDirection::NorthEast,
-                    ResizeEdge::NorthWest => ResizeDirection::NorthWest,
-                    ResizeEdge::SouthEast => ResizeDirection::SouthEast,
-                    ResizeEdge::SouthWest => ResizeDirection::SouthWest,
-                };
-                app.window().with_winit_window(|window| {
-                    let _ = window.drag_resize_window(direction);
-                });
             }
         }
     });

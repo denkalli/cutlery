@@ -19,18 +19,15 @@ impl Default for GeneralConfig {
     }
 }
 
-fn default_accent_color() -> String {
-    "blue".to_string()
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GraphicsConfig {
     pub target_fps: i32,
     pub dummy_composition: bool,
     pub dxvk_async: bool,
     pub dpi_scale: String,
-    #[serde(default = "default_accent_color")]
-    pub accent_color: String,
+    /// Pre-1.5 location of the accent; moved to `appearance.accent_color` on load.
+    #[serde(default, skip_serializing)]
+    pub accent_color: Option<String>,
 }
 
 impl Default for GraphicsConfig {
@@ -40,6 +37,23 @@ impl Default for GraphicsConfig {
             dummy_composition: true,
             dxvk_async: true,
             dpi_scale: "1.0".to_string(),
+            accent_color: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AppearanceConfig {
+    /// Theme id: a built-in theme or a file stem in `~/.config/cutlery/themes/`.
+    pub theme: String,
+    pub accent_color: String,
+}
+
+impl Default for AppearanceConfig {
+    fn default() -> Self {
+        Self {
+            theme: crate::theme::DEFAULT_THEME.to_string(),
             accent_color: "blue".to_string(),
         }
     }
@@ -105,6 +119,7 @@ impl Default for McpConfig {
 #[serde(default)]
 pub struct CutleryConfig {
     pub general: GeneralConfig,
+    pub appearance: AppearanceConfig,
     pub graphics: GraphicsConfig,
     pub kernel: KernelConfig,
     pub fastflags: FastFlagsConfig,
@@ -136,7 +151,7 @@ impl CutleryConfig {
         let path = Self::config_path();
         if path.exists() {
             if let Ok(contents) = fs::read_to_string(&path) {
-                if let Ok(config) = toml::from_str::<CutleryConfig>(&contents) {
+                if let Some(config) = Self::parse(&contents) {
                     return config;
                 }
             }
@@ -144,6 +159,19 @@ impl CutleryConfig {
         let default_config = Self::default();
         let _ = default_config.save();
         default_config
+    }
+
+    /// Parses config.toml, moving the legacy `graphics.accent_color` into `[appearance]`.
+    pub fn parse(contents: &str) -> Option<Self> {
+        let table = toml::from_str::<toml::Table>(contents).ok()?;
+        let has_appearance = table.contains_key("appearance");
+        let mut config = CutleryConfig::deserialize(table).ok()?;
+        if let Some(accent) = config.graphics.accent_color.take() {
+            if !has_appearance {
+                config.appearance.accent_color = accent;
+            }
+        }
+        Some(config)
     }
 
     pub fn save(&self) -> Result<(), std::io::Error> {
@@ -250,17 +278,42 @@ mod tests {
             [experimental]
             experimental_ui = true
         "#;
-        let cfg: CutleryConfig = toml::from_str(toml_str).unwrap();
+        let cfg = CutleryConfig::parse(toml_str).unwrap();
         assert_eq!(cfg.graphics.target_fps, 144);
-        assert_eq!(cfg.graphics.accent_color, "rose");
-        assert!(!toml::to_string_pretty(&cfg).unwrap().contains("experimental"));
+        assert_eq!(cfg.appearance.accent_color, "rose");
+        assert_eq!(cfg.appearance.theme, "cutlery-dark");
+        let saved = toml::to_string_pretty(&cfg).unwrap();
+        assert!(!saved.contains("experimental"));
+        assert_eq!(saved.matches("accent_color").count(), 1);
+        assert_eq!(CutleryConfig::parse(&saved).unwrap(), cfg);
+    }
+
+    #[test]
+    fn test_appearance_section_wins_over_legacy_accent() {
+        let toml_str = r#"
+            [appearance]
+            theme = "midnight"
+            accent_color = "violet"
+
+            [graphics]
+            target_fps = 60
+            dummy_composition = true
+            dxvk_async = true
+            dpi_scale = "1.0"
+            accent_color = "rose"
+        "#;
+        let cfg = CutleryConfig::parse(toml_str).unwrap();
+        assert_eq!(cfg.appearance.theme, "midnight");
+        assert_eq!(cfg.appearance.accent_color, "violet");
+        assert_eq!(cfg.graphics.accent_color, None);
     }
 
     #[test]
     fn test_roundtrip_preserves_equality() {
         let mut cfg = CutleryConfig::default();
         cfg.fastflags.custom.insert("FFlagDebugDisplayFPS".into(), "True".into());
-        let reloaded: CutleryConfig = toml::from_str(&toml::to_string_pretty(&cfg).unwrap()).unwrap();
+        cfg.appearance.theme = "oled".into();
+        let reloaded = CutleryConfig::parse(&toml::to_string_pretty(&cfg).unwrap()).unwrap();
         assert_eq!(cfg, reloaded);
     }
 

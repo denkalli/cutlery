@@ -17,7 +17,7 @@ component NavIcon inherits Rectangle {
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    background: root.active ? Theme.accent.transparentize(82%) : (ta.has-hover ? #ffffff14 : transparent);
+    background: root.active ? Theme.accent.transparentize(82%) : (ta.has-hover ? Theme.hover-tint : transparent);
     animate background { duration: 150ms; }
 
     Image {
@@ -58,7 +58,7 @@ export component Sidebar inherits Rectangle {
         padding-right: 8px;
 
         Rectangle {
-            background: #00000059;
+            background: Theme.sidebar-glass;
             border-radius: 14px;
 
             VerticalLayout {

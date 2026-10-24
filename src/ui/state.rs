@@ -1,15 +1,17 @@
-//! Moves settings between `CutleryConfig` and the Slint `Settings` global.
+//! Moves settings between `CutleryConfig` and the Slint `Settings` global, and themes into `Theme`.
 
 use std::collections::BTreeMap;
 
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
-use super::{AppWindow, FastFlagItem, Settings};
+use super::{AppWindow, FastFlagItem, Settings, ThemeOption, ThemePalette};
 use crate::config::CutleryConfig;
+use crate::theme::{Rgba, ThemeDef};
 
 pub(super) fn push_config(app: &AppWindow, cfg: &CutleryConfig) {
     let s = app.global::<Settings>();
-    s.set_accent_name(cfg.graphics.accent_color.as_str().into());
+    s.set_theme_name(cfg.appearance.theme.as_str().into());
+    s.set_accent_name(cfg.appearance.accent_color.as_str().into());
     s.set_always_open_ui(cfg.general.always_open_ui);
 
     s.set_target_fps(cfg.graphics.target_fps);
@@ -34,7 +36,8 @@ pub(super) fn push_config(app: &AppWindow, cfg: &CutleryConfig) {
 pub(super) fn pull_config(app: &AppWindow, base: &CutleryConfig) -> CutleryConfig {
     let s = app.global::<Settings>();
     let mut cfg = base.clone();
-    cfg.graphics.accent_color = s.get_accent_name().to_string();
+    cfg.appearance.theme = s.get_theme_name().to_string();
+    cfg.appearance.accent_color = s.get_accent_name().to_string();
     cfg.general.always_open_ui = s.get_always_open_ui();
 
     cfg.graphics.target_fps = s.get_target_fps();
@@ -77,4 +80,57 @@ pub(super) fn set_custom_flags(s: &Settings<'_>, flags: &BTreeMap<String, String
         })
         .collect();
     s.set_custom_flags(ModelRc::new(VecModel::from(items)));
+}
+
+fn color(c: Rgba) -> slint::Color {
+    slint::Color::from_argb_u8(c.a, c.r, c.g, c.b)
+}
+
+pub(super) fn theme_option(t: &ThemeDef) -> ThemeOption {
+    ThemeOption {
+        id: t.id.as_str().into(),
+        name: t.name.as_str().into(),
+        author: t.author.as_str().into(),
+        bg: color(t.color("window-bg")),
+        surface: color(t.color("surface")),
+        text: color(t.color("text")),
+        has_accent: t.accent.is_some(),
+        accent: t.accent.map(color).unwrap_or_default(),
+    }
+}
+
+pub(super) fn theme_palette(t: &ThemeDef) -> ThemePalette {
+    let c = |key: &str| color(t.color(key));
+    let home_bg = t.background.as_deref().and_then(|path| slint::Image::load_from_path(path).ok());
+    ThemePalette {
+        dark: t.dark,
+        window_bg: c("window-bg"),
+        window_border: c("window-border"),
+        surface: c("surface"),
+        surface_hover: c("surface-hover"),
+        surface_sunken: c("surface-sunken"),
+        overlay_bg: c("overlay-bg"),
+        border: c("border"),
+        border_strong: c("border-strong"),
+        scrim: c("scrim"),
+        shadow: c("shadow"),
+        hover_tint: c("hover-tint"),
+        status_glass: c("status-glass"),
+        card_glass: c("card-glass"),
+        sidebar_glass: c("sidebar-glass"),
+        hero_top: c("hero-top"),
+        hero_bottom: c("hero-bottom"),
+        text: c("text"),
+        text_soft: c("text-soft"),
+        text_muted: c("text-muted"),
+        text_faint: c("text-faint"),
+        ok: c("ok"),
+        info: c("info"),
+        warn: c("warn"),
+        danger: c("danger"),
+        has_accent: t.accent.is_some(),
+        accent: t.accent.map(color).unwrap_or_default(),
+        has_home_bg: home_bg.is_some(),
+        home_bg: home_bg.unwrap_or_default(),
+    }
 }

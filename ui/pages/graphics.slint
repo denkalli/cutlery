@@ -1,12 +1,49 @@
 import { Theme } from "../theme.slint";
-import { Settings } from "../state.slint";
+import { Settings, Env, Actions } from "../state.slint";
 import { Card, Page, SettingToggle } from "../components/card.slint";
-import { ColorChip, SegmentButton } from "../components/buttons.slint";
+import { ActionButton, ColorChip, SegmentButton, ThemeCard } from "../components/buttons.slint";
+
+// Theme tiles laid out in rows that wrap to the available width.
+component ThemeGrid inherits Rectangle {
+    property <length> tile-w: 156px;
+    property <length> tile-h: 112px;
+    property <length> gap: 10px;
+    property <int> columns: max(1, floor((self.width + gap) / (tile-w + gap)));
+
+    height: ceil(Env.themes.length / columns) * (tile-h + gap) - gap;
+
+    for option[i] in Env.themes: ThemeCard {
+        x: mod(i, root.columns) * (root.tile-w + root.gap);
+        y: floor(i / root.columns) * (root.tile-h + root.gap);
+        name: option.name;
+        author: option.author;
+        bg: option.bg;
+        surface: option.surface;
+        text: option.text;
+        accent: option.has-accent ? option.accent : Theme.accent-for(Settings.accent-name);
+        selected: Settings.theme-name == option.id;
+        clicked => {
+            Settings.theme-name = option.id;
+            Settings.changed();
+        }
+    }
+}
 
 export component GraphicsPage inherits Page {
     Card {
-        title: "Interface";
-        description: "Accent color and launcher behavior.";
+        title: "Appearance";
+        description: "Theme, accent color and launcher behavior.";
+        action-text: "Open Themes Folder";
+        action => { Actions.open-themes-folder(); }
+
+        ThemeGrid { }
+
+        if Env.theme-errors != "": Text {
+            text: "Some themes could not be loaded:\n" + Env.theme-errors;
+            color: Theme.warn;
+            font-size: 12px;
+            wrap: word-wrap;
+        }
 
         HorizontalLayout {
             spacing: 8px;
@@ -14,11 +51,32 @@ export component GraphicsPage inherits Page {
             for accent in Theme.accents: ColorChip {
                 label: accent.label;
                 chip-color: accent.color;
-                selected: Settings.accent-name == accent.name;
+                selected: !Theme.fixed-accent && Settings.accent-name == accent.name;
                 clicked => {
                     Settings.accent-name = accent.name;
                     Settings.changed();
                 }
+            }
+        }
+        if Theme.fixed-accent: Text {
+            text: "This theme sets its own accent color; the accent picked here applies to the other themes.";
+            color: Theme.text-muted;
+            font-size: 12px;
+            wrap: word-wrap;
+        }
+        HorizontalLayout {
+            spacing: 10px;
+            ActionButton {
+                text: "Reload Themes";
+                clicked => { Actions.reload-themes(); }
+            }
+            Text {
+                text: "Custom themes (.toml): " + Env.themes-dir;
+                color: Theme.text-faint;
+                font-size: 12px;
+                vertical-alignment: center;
+                overflow: elide;
+                horizontal-stretch: 1;
             }
         }
         SettingToggle {

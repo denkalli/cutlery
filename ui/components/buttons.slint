@@ -162,3 +162,91 @@ export component HeroButton inherits Rectangle {
         clicked => { root.clicked(); }
     }
 }
+
+// Theme picker tile: a miniature window drawn with the theme's own colors.
+export component ThemeCard inherits Rectangle {
+    in property <string> name;
+    in property <string> author;
+    in property <color> bg;
+    in property <color> surface;
+    in property <color> text;
+    in property <color> accent;
+    in property <bool> selected;
+    callback clicked();
+
+    accessible-role: button;
+    accessible-label: root.name;
+    accessible-checked: root.selected;
+
+    width: 156px;
+    height: 112px;
+    border-radius: Theme.radius-md;
+    border-width: root.selected ? 2px : 1px;
+    border-color: root.selected ? Theme.accent : (ta.has-hover ? Theme.border-strong : Theme.border);
+    background: ta.has-hover ? Theme.surface-hover : Theme.surface-sunken;
+    animate background { duration: 120ms; }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    VerticalLayout {
+        padding: 6px;
+        spacing: 6px;
+
+        Rectangle {
+            height: 62px;
+            border-radius: Theme.radius-sm;
+            background: root.bg;
+            clip: true;
+
+            // Sidebar rail with the active tab in the accent color.
+            Rectangle {
+                x: 6px;
+                y: 8px;
+                width: 8px;
+                height: parent.height - 16px;
+                border-radius: 4px;
+                background: root.surface;
+                Rectangle {
+                    y: 6px;
+                    width: 4px;
+                    height: 8px;
+                    border-radius: 2px;
+                    background: root.accent;
+                }
+            }
+            // A card with two text lines and an accent button.
+            Rectangle {
+                x: 22px;
+                y: 8px;
+                width: parent.width - 30px;
+                height: parent.height - 16px;
+                border-radius: 4px;
+                background: root.surface;
+                Rectangle { x: 8px; y: 8px; width: 60%; height: 5px; border-radius: 2px; background: root.text; }
+                Rectangle { x: 8px; y: 18px; width: 40%; height: 4px; border-radius: 2px; background: root.text.transparentize(50%); }
+                Rectangle { x: parent.width - self.width - 8px; y: parent.height - self.height - 7px; width: 26px; height: 9px; border-radius: 3px; background: root.accent; }
+            }
+        }
+
+        VerticalLayout {
+            padding-left: 2px;
+            spacing: 0px;
+            Text {
+                text: root.name;
+                color: Theme.text;
+                font-size: 12px;
+                font-weight: 600;
+                overflow: elide;
+            }
+            Text {
+                text: root.author == "" ? " " : root.author;
+                color: Theme.text-faint;
+                font-size: 10px;
+                overflow: elide;
+            }
+        }
+    }
+}

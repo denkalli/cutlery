@@ -12,6 +12,7 @@ A lightweight, high-performance **Roblox Studio launcher for Linux** with a nati
 ## Features
 
 - **Control Center GUI**: Modern pre-launch dashboard for graphics, kernel sync, custom FastFlags, and AI bridge management.
+- **Themes**: Built-in dark, light, Midnight and OLED themes, plus your own TOML themes with live preview.
 - **Rootless Docking Fix**: Native fix for Qt/Win32 panel docking without requiring a Virtual Desktop.
 - **Universal MCP Bridge**: Direct stdio JSON-RPC bridge connecting AI coding assistants to Roblox Studio.
 - **Vulkan & Low-Latency Sync**: High-performance DXVK Direct3D 11 rendering with NTSync (`/dev/ntsync`) and `winefsync` support.
@@ -76,6 +77,27 @@ Cutlery provides a unified MCP server endpoint via `cutlery mcp`.
 
 ### Antigravity
 Link the plugin with 1-click in the **Universal MCP** tab of the Cutlery Control Center, or copy `plugins/antigravity-roblox` into `~/.gemini/config/plugins/roblox-studio`.
+
+---
+
+## Themes
+
+Pick a theme in **Graphics → Appearance**. To make your own, drop a `.toml` file into `~/.config/cutlery/themes/` (the **Open Themes Folder** button creates it) and press **Reload Themes**. Any color you leave out is taken from the base palette, so a theme can be as short as:
+
+```toml
+name = "Dracula"
+author = "you"
+base = "dark"            # or "light"
+# background = "bg.png"  # optional Home artwork, relative to this file
+
+[colors]
+window-bg = "#282a36"
+surface = "#343746"
+surface-sunken = "#21222c"
+accent = "#ff79c6"       # optional; without it the accent chips stay selectable
+```
+
+The available colors are the keys in [`data/themes/cutlery-dark.toml`](data/themes/cutlery-dark.toml). A user theme named like a built-in one (for example `oled.toml`) replaces it.
 
 ---
 
