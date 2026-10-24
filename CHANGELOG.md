@@ -2,6 +2,12 @@
 
 The Control Center home page shows this file from the installed release, so edits here appear without recompiling.
 
+## v1.6.1
+
+- **AppImage and Snap packages**: each release now also ships `Cutlery-vX.Y.Z-x86_64.AppImage` and `cutlery_X.Y.Z_amd64.snap` (classic confinement), next to the tarball.
+- **Read-only installs**: the AppImage and the Snap keep the Wine prefix and DXVK in `~/.local/share/cutlery/sandbox/`, point desktop entries at the AppImage or `/snap/bin/cutlery`, and ask you to install the newer package instead of updating in place.
+- **Installer respects the configured prefix**: `cutlery install` and `cutlery mcp` now use the prefix from `config.toml`, and `cutlery doctor` reports it.
+
 ## v1.6.0
 
 - **Discord Rich Presence**: while Studio runs, Discord shows the experience you are editing, whether you are building, scripting or playtesting, and for how long. Privacy mode hides the experience name. Configure it in Universal MCP → Discord Rich Presence; the Doctor page shows whether Discord is running.
