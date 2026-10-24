@@ -9,6 +9,8 @@ description: |
 license: GPL-3.0-or-later
 website: https://github.com/denkalli/cutlery
 issues: https://github.com/denkalli/cutlery/issues
+source-code: https://github.com/denkalli/cutlery
+contact: https://github.com/denkalli/cutlery/issues
 base: core24
 grade: stable
 # Wine, the user's Wine prefix and the Discord socket live on the host.

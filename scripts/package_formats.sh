@@ -68,7 +68,9 @@ build_snap() {
     cp -a "${STAGE_DIR}" "${project}/payload"
 
     # CI runs on Ubuntu 24.04, which matches the core24 base, so no build VM is needed.
-    (cd "${project}" && snapcraft pack --destructive-mode --output "${DIST_DIR}/cutlery_${VERSION}_amd64.snap")
+    # snapcraft only writes packages inside the project tree.
+    (cd "${project}" && snapcraft pack --destructive-mode --output "cutlery_${VERSION}_amd64.snap")
+    mv "${project}/cutlery_${VERSION}_amd64.snap" "${DIST_DIR}/"
     (cd "${DIST_DIR}" && sha256sum "cutlery_${VERSION}_amd64.snap" > "cutlery_${VERSION}_amd64.snap.sha256")
     rm -rf "${project}"
     echo "Snap: ${DIST_DIR}/cutlery_${VERSION}_amd64.snap"
