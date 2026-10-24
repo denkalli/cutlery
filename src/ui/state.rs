@@ -12,6 +12,7 @@ pub(super) fn push_config(app: &AppWindow, cfg: &CutleryConfig) {
     let s = app.global::<Settings>();
     s.set_theme_name(cfg.appearance.theme.as_str().into());
     s.set_accent_name(cfg.appearance.accent_color.as_str().into());
+    s.set_studio_theme(cfg.appearance.studio_theme);
     s.set_always_open_ui(cfg.general.always_open_ui);
 
     s.set_target_fps(cfg.graphics.target_fps);
@@ -38,6 +39,7 @@ pub(super) fn pull_config(app: &AppWindow, base: &CutleryConfig) -> CutleryConfi
     let mut cfg = base.clone();
     cfg.appearance.theme = s.get_theme_name().to_string();
     cfg.appearance.accent_color = s.get_accent_name().to_string();
+    cfg.appearance.studio_theme = s.get_studio_theme();
     cfg.general.always_open_ui = s.get_always_open_ui();
 
     cfg.graphics.target_fps = s.get_target_fps();

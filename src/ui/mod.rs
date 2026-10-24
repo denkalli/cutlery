@@ -26,6 +26,8 @@ struct ProbeTarget {
     root: PathBuf,
     prefix: PathBuf,
     wine_binary: String,
+    /// Whether the saved config themes Studio (the Doctor then checks the Studio build).
+    studio_theme: bool,
 }
 
 /// Shared by the UI callbacks: paths plus the last saved config (the dirty-tracking baseline).
@@ -76,6 +78,7 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
             root,
             prefix: prefix.clone(),
             wine_binary: config.general.wine_binary.clone(),
+            studio_theme: config.appearance.studio_theme,
         },
         prefix,
         saved: RefCell::new(config),
@@ -91,10 +94,17 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
     register_window_callbacks(&app);
 
     set_status(&app, "Checking environment…");
-    refresh_environment(&app, ctx.probe.clone(), None);
+    refresh_environment(&app, ctx.probe_target(), None);
 
     app.run()?;
     Ok(())
+}
+
+impl Ctx {
+    /// Probe target following the last saved config.
+    fn probe_target(&self) -> ProbeTarget {
+        ProbeTarget { studio_theme: self.saved.borrow().appearance.studio_theme, ..self.probe.clone() }
+    }
 }
 
 fn set_status(app: &AppWindow, text: impl Into<slint::SharedString>) {
@@ -117,7 +127,7 @@ fn refresh_environment(app: &AppWindow, target: ProbeTarget, message: Option<Str
     begin_job(app);
     let weak = app.as_weak();
     std::thread::spawn(move || {
-        let report = EnvReport::probe(&target.root, &target.prefix, &target.wine_binary);
+        let report = EnvReport::probe(&target.root, &target.prefix, &target.wine_binary, target.studio_theme);
         let _ = weak.upgrade_in_event_loop(move |app| {
             let env = app.global::<Env>();
             env.set_studio_version(report.studio_version().into());
@@ -284,7 +294,7 @@ fn check_studio_update(app: &AppWindow, ctx: &Ctx) {
     begin_job(app);
     set_status(app, "Checking the latest Roblox Studio version…");
     let weak = app.as_weak();
-    let target = ctx.probe.clone();
+    let target = ctx.probe_target();
     std::thread::spawn(move || {
         let message = match update::check_studio(&target.prefix) {
             StudioCheck::UpToDate(version) => format!("Roblox Studio is up to date ({}).", version),
@@ -459,7 +469,7 @@ fn register_action_callbacks(app: &AppWindow, ctx: &Rc<Ctx>) {
             if let Some(app) = weak.upgrade() {
                 if !app.global::<Status>().get_busy() {
                     set_status(&app, "Running diagnostics…");
-                    refresh_environment(&app, ctx.probe.clone(), Some("Diagnostics refreshed.".to_string()));
+                    refresh_environment(&app, ctx.probe_target(), Some("Diagnostics refreshed.".to_string()));
                 }
             }
         }

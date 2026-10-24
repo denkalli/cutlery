@@ -322,6 +322,18 @@ fn original_path(dir: &Path, name: &str) -> PathBuf {
     dir.join(format!("Foundation{}Theme.orig.json", name))
 }
 
+/// The cached originals, when the patched exe and its stamp match the current Studio exe.
+fn cached_originals(studio_dir: &Path, stamp: &str) -> Option<Originals> {
+    let theme_dir = studio_dir.join(THEME_DIR);
+    let up_to_date = studio_dir.join(PATCHED_EXE).is_file()
+        && fs::read_to_string(studio_dir.join(STAMP_FILE)).is_ok_and(|s| s.trim() == stamp);
+    if !up_to_date {
+        return None;
+    }
+    let read = |name| fs::read_to_string(original_path(&theme_dir, name)).ok();
+    Some(Originals { dark: read("Dark")?, light: read("Light")? })
+}
+
 /// Makes sure the patched exe and the extracted originals in `studio_dir` match the current
 /// `RobloxStudioBeta.exe`, redoing both after a Studio update. Returns the originals.
 pub fn ensure_patched(studio_dir: &Path) -> Result<Originals, String> {
@@ -329,14 +341,8 @@ pub fn ensure_patched(studio_dir: &Path) -> Result<Originals, String> {
     let stamp = stamp_of(&exe)?;
     let theme_dir = studio_dir.join(THEME_DIR);
     let stamp_path = studio_dir.join(STAMP_FILE);
-
-    let up_to_date = studio_dir.join(PATCHED_EXE).is_file()
-        && fs::read_to_string(&stamp_path).is_ok_and(|s| s.trim() == stamp);
-    if up_to_date {
-        let read = |name| fs::read_to_string(original_path(&theme_dir, name));
-        if let (Ok(dark), Ok(light)) = (read("Dark"), read("Light")) {
-            return Ok(Originals { dark, light });
-        }
+    if let Some(originals) = cached_originals(studio_dir, &stamp) {
+        return Ok(originals);
     }
 
     let bytes = fs::read(&exe).map_err(|e| format!("{}: {}", exe.display(), e))?;
@@ -348,6 +354,36 @@ pub fn ensure_patched(studio_dir: &Path) -> Result<Originals, String> {
     write_atomic(&studio_dir.join(PATCHED_EXE), &patched)?;
     write_atomic(&stamp_path, stamp.as_bytes())?;
     Ok(originals)
+}
+
+/// Studio theme readiness, shown on the Doctor page.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Status {
+    /// Patched copy and originals match the installed Studio.
+    Ready,
+    /// This Studio build can be themed; it is prepared on the next themed launch.
+    Pending,
+    /// This Studio build cannot be themed (for example, Roblox changed the theme files).
+    Unsupported(String),
+}
+
+/// Checks `studio_dir` without writing anything. Reads the whole exe unless it is already prepared.
+pub fn status(studio_dir: &Path) -> Status {
+    let exe = studio_dir.join("RobloxStudioBeta.exe");
+    let stamp = match stamp_of(&exe) {
+        Ok(stamp) => stamp,
+        Err(e) => return Status::Unsupported(e),
+    };
+    if cached_originals(studio_dir, &stamp).is_some() {
+        return Status::Ready;
+    }
+    let checked = fs::read(&exe)
+        .map_err(|e| format!("{}: {}", exe.display(), e))
+        .and_then(|bytes| patch_exe(&bytes).and_then(|_| extract_originals(&bytes)));
+    match checked {
+        Ok(_) => Status::Pending,
+        Err(e) => Status::Unsupported(e),
+    }
 }
 
 /// Writes both theme files Studio now loads from disk: the theme's base gets the rendered
@@ -529,8 +565,10 @@ mod tests {
         let (dark, light) = (padded("Dark"), padded("Light"));
         fs::write(dir.join("RobloxStudioBeta.exe"), fake_exe(&dark, &light)).unwrap();
 
+        assert_eq!(status(&dir), Status::Pending);
         let originals = ensure_patched(&dir).unwrap();
         assert_eq!(originals.dark, dark);
+        assert_eq!(status(&dir), Status::Ready);
         assert!(dir.join(PATCHED_EXE).is_file());
         // Second call reuses the stamp and cached originals.
         assert_eq!(ensure_patched(&dir).unwrap(), originals);
@@ -540,6 +578,8 @@ mod tests {
         let themes = dir.join(THEME_DIR);
         assert_eq!(fs::read_to_string(themes.join("FoundationDarkTheme.json")).unwrap(), dark);
         assert!(fs::read_to_string(themes.join("FoundationLightTheme.json")).unwrap().contains("\"Light\""));
+        fs::write(dir.join("RobloxStudioBeta.exe"), b"updated Studio without theme paths").unwrap();
+        assert!(matches!(status(&dir), Status::Unsupported(_)));
         let _ = fs::remove_dir_all(&dir);
     }
 

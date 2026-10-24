@@ -80,6 +80,11 @@ export component GraphicsPage inherits Page {
             }
         }
         SettingToggle {
+            title: "Apply theme to Roblox Studio (experimental)";
+            description: "Recolors Studio's panels, menus and Script Editor; the ribbon, Explorer and Toolbox keep Studio's colors.";
+            checked <=> Settings.studio-theme;
+        }
+        SettingToggle {
             title: "Open Cutlery Settings on launch";
             description: "Opening Cutlery from the app drawer shows this dashboard instead of launching Studio directly.";
             checked <=> Settings.always-open-ui;

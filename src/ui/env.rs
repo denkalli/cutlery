@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::DoctorCheck;
+use crate::studio_theme;
 use crate::update::STUDIO_VERSION_MARKER;
 use crate::{find_studio_exe, DXVK_VERSION};
 
@@ -13,6 +14,7 @@ const BUNDLED_CHANGELOG: &str = include_str!("../../CHANGELOG.md");
 const LEVEL_OK: i32 = 0;
 const LEVEL_WARN: i32 = 1;
 const LEVEL_FAIL: i32 = 2;
+const LEVEL_NEUTRAL: i32 = 3;
 
 /// Snapshot of the host and prefix state. Built off the UI thread, so it only holds owned data.
 pub(super) struct EnvReport {
@@ -25,12 +27,15 @@ pub(super) struct EnvReport {
     pub studio_exe: Option<PathBuf>,
     /// Human-readable Studio version written by the installer next to the executable.
     pub studio_version_id: Option<String>,
+    /// `None` while the Studio theme is off (or Studio is not installed).
+    pub studio_theme: Option<studio_theme::Status>,
 }
 
 impl EnvReport {
-    /// Probes Wine, NTSync, DXVK, the docking hook and the Studio install.
-    /// May compile the docking hook, so call it from a worker thread.
-    pub fn probe(root: &Path, prefix: &Path, wine_binary: &str) -> Self {
+    /// Probes Wine, NTSync, DXVK, the docking hook, the Studio install and, when `studio_theme`
+    /// is on, whether this Studio build can be themed. May compile the docking hook and read the
+    /// whole Studio exe, so call it from a worker thread.
+    pub fn probe(root: &Path, prefix: &Path, wine_binary: &str, studio_theme: bool) -> Self {
         let wine_version = Command::new(wine_binary)
             .arg("--version")
             .output()
@@ -56,6 +61,11 @@ impl EnvReport {
             .as_ref()
             .and_then(|exe| exe.parent())
             .and_then(|dir| read_trimmed(&dir.join(STUDIO_VERSION_MARKER)));
+        let studio_theme = studio_exe
+            .as_ref()
+            .and_then(|exe| exe.parent())
+            .filter(|_| studio_theme)
+            .map(studio_theme::status);
 
         Self {
             wine_version,
@@ -65,6 +75,7 @@ impl EnvReport {
             hook,
             studio_exe,
             studio_version_id,
+            studio_theme,
         }
     }
 
@@ -119,6 +130,16 @@ impl EnvReport {
                 check("Prefix Integrity", "OK (Studio installed)".into(), LEVEL_OK)
             } else {
                 check("Prefix Integrity", "Needs install".into(), LEVEL_WARN)
+            },
+            match &self.studio_theme {
+                None => check("Studio Theme", "Off".into(), LEVEL_NEUTRAL),
+                Some(studio_theme::Status::Ready) => check("Studio Theme", "OK (patched copy ready)".into(), LEVEL_OK),
+                Some(studio_theme::Status::Pending) => {
+                    check("Studio Theme", "Prepared on next launch".into(), LEVEL_OK)
+                }
+                Some(studio_theme::Status::Unsupported(e)) => {
+                    check("Studio Theme", format!("Unsupported Studio build: {}", e), LEVEL_FAIL)
+                }
             },
         ]
     }
