@@ -8,11 +8,13 @@ use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use slint::winit_030::{winit::window::ResizeDirection, WinitWindowAccessor};
 use slint::ComponentHandle;
 
 use crate::config::CutleryConfig;
+use crate::update::{self, Release, StudioCheck};
 use crate::{cmd_install, find_studio_exe, get_root_dir};
 use env::EnvReport;
 
@@ -31,6 +33,8 @@ struct Ctx {
     probe: ProbeTarget,
     prefix: PathBuf,
     saved: RefCell<CutleryConfig>,
+    /// Cutlery release offered in the UpdateDialog; filled by a worker thread.
+    offered_release: Arc<Mutex<Option<Release>>>,
 }
 
 pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
@@ -39,11 +43,22 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
     let config = CutleryConfig::load();
     let prefix = config.prefix_dir(&root);
 
+    let installed = update::installed_version(&root);
+    let changelog: Vec<ChangelogSection> = env::load_changelog(&root)
+        .into_iter()
+        .map(|entry| ChangelogSection {
+            current: entry.version == installed,
+            version: entry.version.into(),
+            items: slint::ModelRc::new(slint::VecModel::from(
+                entry.items.into_iter().map(slint::SharedString::from).collect::<Vec<_>>(),
+            )),
+        })
+        .collect();
+
     let env = app.global::<Env>();
-    env.set_client_version(env::client_version().into());
+    env.set_client_version(installed.into());
     env.set_prefix_path(prefix.to_string_lossy().to_string().into());
-    env.set_dxvk_version(crate::DXVK_VERSION.into());
-    env.set_changelog(env::current_changelog().into());
+    env.set_changelog(slint::ModelRc::new(slint::VecModel::from(changelog)));
     let (linked, link_path) = integrations::check_antigravity_link();
     env.set_antigravity_linked(linked);
     env.set_antigravity_path(link_path.into());
@@ -57,6 +72,7 @@ pub fn launch_ui() -> Result<(), Box<dyn std::error::Error>> {
         },
         prefix,
         saved: RefCell::new(config),
+        offered_release: Arc::new(Mutex::new(None)),
     });
 
     register_settings_callbacks(&app, &ctx);
@@ -95,6 +111,7 @@ fn refresh_environment(app: &AppWindow, target: ProbeTarget, message: Option<Str
             let env = app.global::<Env>();
             env.set_studio_version(report.studio_version().into());
             env.set_studio_installed(report.studio_exe.is_some());
+            env.set_dxvk_version(report.dxvk_label().into());
             env.set_wine_version(report.wine_version.clone().unwrap_or_else(|| "Not found".into()).into());
             env.set_ntsync_available(report.ntsync);
             env.set_checks(slint::ModelRc::new(slint::VecModel::from(report.checks())));
@@ -147,6 +164,106 @@ fn guard_unapplied(app: &AppWindow, action: PendingAction) -> bool {
         return false;
     }
     true
+}
+
+/// Update button, step 1: look for a newer Cutlery release and offer it in the UpdateDialog.
+/// Without one (or when the check fails) it moves straight on to the Studio check.
+fn check_cutlery_update(app: &AppWindow, ctx: &Ctx) {
+    if app.global::<Status>().get_busy() {
+        return;
+    }
+    begin_job(app);
+    set_status(app, "Checking for Cutlery updates…");
+    let weak = app.as_weak();
+    let root = ctx.probe.root.clone();
+    let offered = ctx.offered_release.clone();
+    std::thread::spawn(move || {
+        let current = update::installed_version(&root);
+        let latest = update::fetch_latest_release();
+        let _ = weak.upgrade_in_event_loop(move |app| {
+            end_job(&app);
+            match latest {
+                Ok(release) if update::is_newer(&current, &release.version) => {
+                    if update::is_source_checkout(&root) {
+                        set_status(
+                            &app,
+                            format!("Cutlery {} is available; this is a source checkout, update it with git pull.", release.version),
+                        );
+                        app.global::<Actions>().invoke_check_studio_updates();
+                        return;
+                    }
+                    let shell = app.global::<Shell>();
+                    shell.set_update_from(current.into());
+                    shell.set_update_to(release.version.as_str().into());
+                    *offered.lock().unwrap() = Some(release);
+                    shell.set_update_open(true);
+                    set_status(&app, "A Cutlery update is available.");
+                }
+                Ok(_) => {
+                    set_status(&app, format!("Cutlery {} is up to date.", current));
+                    app.global::<Actions>().invoke_check_studio_updates();
+                }
+                Err(e) => {
+                    set_status(&app, format!("Could not check for Cutlery updates: {}", e));
+                    app.global::<Actions>().invoke_check_studio_updates();
+                }
+            }
+        });
+    });
+}
+
+/// Downloads and installs the offered release, then restarts into the new binary.
+fn install_offered_release(app: &AppWindow, ctx: &Ctx) {
+    let Some(release) = ctx.offered_release.lock().unwrap().take() else { return };
+    begin_job(app);
+    set_status(app, format!("Downloading and installing Cutlery {}…", release.version));
+    let weak = app.as_weak();
+    let root = ctx.probe.root.clone();
+    std::thread::spawn(move || {
+        let result = update::apply_release(&release, &root);
+        let _ = weak.upgrade_in_event_loop(move |app| {
+            end_job(&app);
+            match result.map_err(|e| e.to_string()).and_then(|binary| {
+                Command::new(&binary).arg("ui").spawn().map_err(|e| format!("Updated, but could not restart: {}", e))
+            }) {
+                Ok(_) => quit(&app),
+                Err(e) => set_status(&app, e),
+            }
+        });
+    });
+}
+
+/// Update button, step 2 (also Doctor → Check Studio Updates): run the Studio installer only
+/// when Roblox published a build newer than the installed one.
+fn check_studio_update(app: &AppWindow, ctx: &Ctx) {
+    if app.global::<Status>().get_busy() {
+        return;
+    }
+    begin_job(app);
+    set_status(app, "Checking the latest Roblox Studio version…");
+    let weak = app.as_weak();
+    let target = ctx.probe.clone();
+    std::thread::spawn(move || {
+        let message = match update::check_studio(&target.prefix) {
+            StudioCheck::UpToDate(version) => format!("Roblox Studio is up to date ({}).", version),
+            StudioCheck::Unknown(e) => format!("Could not check the Roblox Studio version: {}", e),
+            StudioCheck::NeedsInstall(version) => {
+                let label = version.unwrap_or_else(|| "latest".into());
+                let progress = format!("Installing Roblox Studio {}…", label);
+                let _ = weak.upgrade_in_event_loop(move |app| set_status(&app, progress));
+                match cmd_install() {
+                    Ok(status) if status.success() => format!("Roblox Studio {} installed.", label),
+                    Ok(status) => format!("Roblox Studio installer exited with {}.", status),
+                    Err(e) => format!("Roblox Studio installer failed: {}", e),
+                }
+            }
+        };
+
+        let _ = weak.upgrade_in_event_loop(move |app| {
+            end_job(&app);
+            refresh_environment(&app, target, Some(message));
+        });
+    });
 }
 
 fn register_settings_callbacks(app: &AppWindow, ctx: &Rc<Ctx>) {
@@ -241,6 +358,7 @@ fn register_action_callbacks(app: &AppWindow, ctx: &Rc<Ctx>) {
                 match action {
                     PendingAction::Close => quit(&app),
                     PendingAction::Launch => launch_studio_and_quit(&app),
+                    PendingAction::Update => install_offered_release(&app, &ctx),
                 }
             }
         }
@@ -250,26 +368,42 @@ fn register_action_callbacks(app: &AppWindow, ctx: &Rc<Ctx>) {
         let weak = app.as_weak();
         let ctx = ctx.clone();
         move || {
-            let Some(app) = weak.upgrade() else { return };
-            if app.global::<Status>().get_busy() {
-                return;
+            if let Some(app) = weak.upgrade() {
+                check_cutlery_update(&app, &ctx);
             }
-            begin_job(&app);
-            set_status(&app, "Running the Roblox Studio installer/updater…");
-            let weak = app.as_weak();
-            let target = ctx.probe.clone();
-            std::thread::spawn(move || {
-                let message = match cmd_install() {
-                    Ok(status) if status.success() => "Roblox Studio install/update finished.".to_string(),
-                    Ok(status) => format!("Installer exited with {}.", status),
-                    Err(e) => format!("Installer failed: {}", e),
-                };
-                // Re-detect the Studio install, keeping the installer message visible.
-                let _ = weak.upgrade_in_event_loop(move |app| {
-                    end_job(&app);
-                    refresh_environment(&app, target, Some(message));
-                });
-            });
+        }
+    });
+
+    actions.on_check_studio_updates({
+        let weak = app.as_weak();
+        let ctx = ctx.clone();
+        move || {
+            if let Some(app) = weak.upgrade() {
+                check_studio_update(&app, &ctx);
+            }
+        }
+    });
+
+    actions.on_accept_update({
+        let weak = app.as_weak();
+        let ctx = ctx.clone();
+        move || {
+            if let Some(app) = weak.upgrade() {
+                if guard_unapplied(&app, PendingAction::Update) {
+                    install_offered_release(&app, &ctx);
+                }
+            }
+        }
+    });
+
+    actions.on_decline_update({
+        let weak = app.as_weak();
+        let ctx = ctx.clone();
+        move || {
+            if let Some(app) = weak.upgrade() {
+                ctx.offered_release.lock().unwrap().take();
+                check_studio_update(&app, &ctx);
+            }
         }
     });
 

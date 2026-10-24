@@ -5,6 +5,7 @@ use std::process::{Command, ExitStatus};
 
 pub mod config;
 pub mod ui;
+pub mod update;
 
 use config::CutleryConfig;
 
@@ -72,7 +73,9 @@ pub(crate) fn find_studio_exe(prefix: &Path) -> Option<PathBuf> {
         return None;
     }
 
-    // Search common version directories
+    // Search common version directories; after a Studio update several can exist,
+    // so prefer the most recently installed one.
+    let mut newest: Option<(std::time::SystemTime, PathBuf)> = None;
     let versions_dir = drive_c.join("users");
     if let Ok(users) = fs::read_dir(&versions_dir) {
         for user in users.flatten() {
@@ -85,14 +88,17 @@ pub(crate) fn find_studio_exe(prefix: &Path) -> Option<PathBuf> {
             if let Ok(vers) = fs::read_dir(&studio_versions) {
                 for ver in vers.flatten() {
                     let exe = ver.path().join("RobloxStudioBeta.exe");
-                    if exe.exists() {
-                        return Some(exe);
+                    if let Ok(meta) = fs::metadata(&exe) {
+                        let modified = meta.modified().unwrap_or(std::time::UNIX_EPOCH);
+                        if newest.as_ref().is_none_or(|(t, _)| modified > *t) {
+                            newest = Some((modified, exe));
+                        }
                     }
                 }
             }
         }
     }
-    None
+    newest.map(|(_, exe)| exe)
 }
 
 pub(crate) const DXVK_VERSION: &str = "3.1.1";
@@ -239,6 +245,7 @@ fn ensure_dxvk(sandbox: &Path, data_dir: &Path) -> PathBuf {
                         ])
                         .status();
                     let _ = fs::remove_file(&tarball);
+                    let _ = fs::write(dxvk_root.join("VERSION"), format!("{}\n", DXVK_VERSION));
                     if sandbox_dxvk.join("d3d11.dll").exists() {
                         println!("[Cutlery] DXVK v{} downloaded, verified (SHA-256), and extracted successfully.", DXVK_VERSION);
                     }
@@ -451,6 +458,44 @@ pub(crate) fn cmd_install() -> Result<ExitStatus, std::io::Error> {
     Command::new("bash").arg(&install_sh).status()
 }
 
+/// `cutlery update`: offers a newer Cutlery release, then updates Roblox Studio if needed.
+fn cmd_update() -> Result<(), String> {
+    let root = get_root_dir();
+    let current = update::installed_version(&root);
+    println!("[Cutlery] Installed version: {}", current);
+
+    match update::fetch_latest_release() {
+        Ok(release) if update::is_newer(&current, &release.version) => {
+            if update::is_source_checkout(&root) {
+                println!("[Cutlery] {} is available. This is a source checkout; update it with git pull.", release.version);
+            } else {
+                print!("[Cutlery] Update Cutlery {} -> {}? [y/N] ", current, release.version);
+                use std::io::Write;
+                let _ = std::io::stdout().flush();
+                let mut answer = String::new();
+                let _ = std::io::stdin().read_line(&mut answer);
+                if answer.trim().eq_ignore_ascii_case("y") {
+                    let binary = update::apply_release(&release, &root)?;
+                    println!("[Cutlery] Updated to {} ({}).", release.version, binary.display());
+                }
+            }
+        }
+        Ok(_) => println!("[Cutlery] Cutlery {} is up to date.", current),
+        Err(e) => eprintln!("[Cutlery] Could not check for Cutlery updates: {}", e),
+    }
+
+    let prefix = CutleryConfig::load().prefix_dir(&root);
+    match update::check_studio(&prefix) {
+        update::StudioCheck::UpToDate(version) => println!("[Cutlery] Roblox Studio is up to date ({}).", version),
+        update::StudioCheck::Unknown(e) => eprintln!("[Cutlery] Could not check the Roblox Studio version: {}", e),
+        update::StudioCheck::NeedsInstall(version) => {
+            println!("[Cutlery] Installing Roblox Studio {}...", version.as_deref().unwrap_or("latest"));
+            cmd_install().map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
 fn cmd_register_desktop() -> Result<(), std::io::Error> {
     let root = get_root_dir();
     let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
@@ -640,6 +685,7 @@ fn print_help() {
     println!("  run [args...]          Launch Roblox Studio with native docking fixes and DXVK");
     println!("  mcp [args...]          Run the Universal MCP Bridge (for Claude, Cursor, Antigravity, Codex)");
     println!("  install                Install or update Roblox Studio in the Wine prefix");
+    println!("  update                 Update Cutlery (GitHub Releases) and Roblox Studio");
     println!("  register-desktop       Register desktop launcher and roblox-studio:// browser URI handler");
     println!("  doctor                 Verify system, Wine, driver, and prefix health");
     println!("  version                Show version information");
@@ -678,6 +724,12 @@ fn main() {
         "install" => {
             if let Err(e) = cmd_install() {
                 eprintln!("[Cutlery] Failed to run installer: {}", e);
+                std::process::exit(1);
+            }
+        }
+        "update" | "upgrade" => {
+            if let Err(e) = cmd_update() {
+                eprintln!("[Cutlery] Update failed: {}", e);
                 std::process::exit(1);
             }
         }

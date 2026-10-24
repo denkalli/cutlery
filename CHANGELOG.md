@@ -1,6 +1,13 @@
 # Changelog
 
-The section matching the running version is shown on the Control Center home page.
+The Control Center home page shows this file from the installed release, so edits here appear without recompiling.
+
+## v1.4.0
+
+- **Working Update button**: checks GitHub Releases for a newer Cutlery, asks before installing (verified with SHA-256) and restarts into the new version. Roblox Studio is then updated only when Roblox has published a newer build.
+- **`cutlery update`**: the same update flow from the terminal.
+- **Installed versions everywhere**: the Cutlery, Roblox Studio and DXVK versions shown in the UI are read from the installation instead of being hardcoded.
+- **Scrollable changelog**: the home page lists every release from the installed CHANGELOG.md, with the installed version highlighted.
 
 ## v1.3.0
 

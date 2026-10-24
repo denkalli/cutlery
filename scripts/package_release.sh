@@ -57,6 +57,9 @@ cp -r "${PROJECT_ROOT}/assets" "${STAGE_DIR}/assets"
 cp -r "${PROJECT_ROOT}/plugins" "${STAGE_DIR}/plugins"
 cp "${PROJECT_ROOT}/LICENSE" "${STAGE_DIR}/LICENSE"
 cp "${PROJECT_ROOT}/README.md" "${STAGE_DIR}/README.md"
+cp "${PROJECT_ROOT}/CHANGELOG.md" "${STAGE_DIR}/CHANGELOG.md"
+# Installed release version, read by the Control Center and `cutlery update`
+echo "v${VERSION}" > "${STAGE_DIR}/version"
 
 # 4. Create compressed tarball
 echo "[4/5] Compressing tarball archive..."

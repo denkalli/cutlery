@@ -101,7 +101,9 @@ export component ConfirmDialog inherits Rectangle {
             VerticalLayout {
                 spacing: 6px;
                 Text {
-                    text: Shell.pending-action == PendingAction.close ? "Close with unapplied changes?" : "Launch with unapplied changes?";
+                    text: Shell.pending-action == PendingAction.close ? "Close with unapplied changes?"
+                        : Shell.pending-action == PendingAction.update ? "Update with unapplied changes?"
+                        : "Launch with unapplied changes?";
                     color: Theme.text;
                     font-size: 15px;
                     font-weight: 700;
@@ -134,6 +136,71 @@ export component ConfirmDialog inherits Rectangle {
                     clicked => {
                         Shell.confirm-open = false;
                         Actions.confirm-proceed(Shell.pending-action, true);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Offered by the Update button when a newer Cutlery release exists.
+export component UpdateDialog inherits Rectangle {
+    background: Theme.scrim;
+
+    TouchArea { }
+
+    Rectangle {
+        width: 440px;
+        height: box.preferred-height;
+        background: #1e1e26;
+        border-color: Theme.border-strong;
+        border-width: 1px;
+        border-radius: Theme.radius-lg;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: #000000;
+
+        box := VerticalLayout {
+            padding: 20px;
+            spacing: 18px;
+
+            VerticalLayout {
+                spacing: 6px;
+                Text {
+                    text: "Cutlery update available";
+                    color: Theme.text;
+                    font-size: 15px;
+                    font-weight: 700;
+                }
+                Text {
+                    text: Shell.update-from + "  →  " + Shell.update-to;
+                    color: Theme.accent;
+                    font-family: Theme.display-font;
+                    font-size: 20px;
+                }
+                Text {
+                    text: "The new release is downloaded from GitHub, verified (SHA-256) and installed. Cutlery restarts afterwards; your Wine prefix and settings are kept.";
+                    color: Theme.text-muted;
+                    font-size: 12px;
+                    wrap: word-wrap;
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: end;
+                ActionButton {
+                    text: "Not now";
+                    clicked => {
+                        Shell.update-open = false;
+                        Actions.decline-update();
+                    }
+                }
+                ActionButton {
+                    text: "Update & Restart";
+                    primary: true;
+                    clicked => {
+                        Shell.update-open = false;
+                        Actions.accept-update();
                     }
                 }
             }

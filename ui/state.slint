@@ -14,7 +14,14 @@ export struct DoctorCheck {
     level: int,
 }
 
-export enum PendingAction { close, launch }
+// One `## vX.Y.Z` section of the installed CHANGELOG.md.
+export struct ChangelogSection {
+    version: string,
+    current: bool,
+    items: [string],
+}
+
+export enum PendingAction { close, launch, update }
 
 export enum ResizeEdge { north, south, east, west, north-east, north-west, south-east, south-west }
 
@@ -58,7 +65,7 @@ export global Env {
     in property <bool> studio-installed;
     in property <bool> ntsync-available;
     in property <[DoctorCheck]> checks;
-    in property <string> changelog;
+    in property <[ChangelogSection]> changelog;
 
     in property <bool> antigravity-linked;
     in property <string> antigravity-path;
@@ -76,11 +83,20 @@ export global Shell {
     in property <bool> maximized;
     in-out property <bool> confirm-open;
     in-out property <PendingAction> pending-action;
+
+    // Cutlery update offer (Update button): installed and available versions.
+    in-out property <bool> update-open;
+    in property <string> update-from;
+    in property <string> update-to;
 }
 
 export global Actions {
     callback launch-studio();
+    // Home "Update": Cutlery self-update (with confirmation), then Roblox Studio.
     callback check-updates();
+    callback check-studio-updates();
+    callback accept-update();
+    callback decline-update();
     callback open-prefix();
     callback run-doctor();
     callback link-antigravity();

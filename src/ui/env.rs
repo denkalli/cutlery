@@ -4,9 +4,11 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::DoctorCheck;
+use crate::update::STUDIO_VERSION_MARKER;
 use crate::{find_studio_exe, DXVK_VERSION};
 
-const CHANGELOG: &str = include_str!("../../CHANGELOG.md");
+/// Fallback when the install has no CHANGELOG.md (e.g. a bare binary).
+const BUNDLED_CHANGELOG: &str = include_str!("../../CHANGELOG.md");
 
 const LEVEL_OK: i32 = 0;
 const LEVEL_WARN: i32 = 1;
@@ -17,8 +19,12 @@ pub(super) struct EnvReport {
     pub wine_version: Option<String>,
     pub ntsync: bool,
     pub dxvk: bool,
+    /// From `sandbox/dxvk/VERSION`, written when Cutlery downloads DXVK.
+    pub dxvk_version: Option<String>,
     pub hook: bool,
     pub studio_exe: Option<PathBuf>,
+    /// Human-readable Studio version written by the installer next to the executable.
+    pub studio_version_id: Option<String>,
 }
 
 impl EnvReport {
@@ -45,17 +51,34 @@ impl EnvReport {
         let hook = custom_libs.join("wine_hook.so").exists()
             || custom_libs.join("x86_64").join("wine_hook.so").exists();
 
+        let studio_exe = find_studio_exe(prefix);
+        let studio_version_id = studio_exe
+            .as_ref()
+            .and_then(|exe| exe.parent())
+            .and_then(|dir| read_trimmed(&dir.join(STUDIO_VERSION_MARKER)));
+
         Self {
             wine_version,
             ntsync: Path::new("/dev/ntsync").exists(),
             dxvk,
+            dxvk_version: read_trimmed(&root.join("sandbox").join("dxvk").join("VERSION")),
             hook,
-            studio_exe: find_studio_exe(prefix),
+            studio_exe,
+            studio_version_id,
         }
     }
 
-    /// Name of the installed Studio version directory, if any.
+    /// DXVK version in use, `v`-prefixed.
+    pub fn dxvk_label(&self) -> String {
+        let version = self.dxvk_version.as_deref().unwrap_or(DXVK_VERSION);
+        format!("v{}", version.trim_start_matches('v'))
+    }
+
+    /// Installed Studio version: the installer's version marker, else the version directory name.
     pub fn studio_version(&self) -> String {
+        if let Some(id) = &self.studio_version_id {
+            return id.clone();
+        }
         match &self.studio_exe {
             Some(exe) => exe
                 .parent()
@@ -88,7 +111,7 @@ impl EnvReport {
                 check("X11 Docking Hook", "Missing".into(), LEVEL_FAIL)
             },
             if self.dxvk {
-                check("DXVK Vulkan Layer", format!("OK (v{})", DXVK_VERSION), LEVEL_OK)
+                check("DXVK Vulkan Layer", format!("OK ({})", self.dxvk_label()), LEVEL_OK)
             } else {
                 check("DXVK Vulkan Layer", "Fetched on first launch".into(), LEVEL_WARN)
             },
@@ -106,77 +129,95 @@ impl EnvReport {
         } else if self.wine_version.is_none() {
             "Wine was not found in PATH. Install Wine 9.0+ to launch Studio.".to_string()
         } else {
-            format!("Ready • Roblox Studio detected • DXVK v{}", DXVK_VERSION)
+            format!("Ready • Roblox Studio {} • DXVK {}", self.studio_version(), self.dxvk_label())
         }
     }
 }
 
-/// Version shown in the title bar: a `version` file next to the binary (release packages)
-/// or the crate version.
-pub(super) fn client_version() -> String {
-    let from_file = std::env::current_exe()
+fn read_trimmed(path: &Path) -> Option<String> {
+    std::fs::read_to_string(path)
         .ok()
-        .and_then(|exe| exe.parent().map(|dir| dir.join("version")))
-        .and_then(|path| std::fs::read_to_string(path).ok())
         .map(|content| content.trim().to_string())
-        .filter(|v| !v.is_empty());
-    let version = from_file.unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
-    if version.starts_with('v') {
-        version
-    } else {
-        format!("v{}", version)
-    }
+        .filter(|v| !v.is_empty())
 }
 
-/// Changelog entries for the running crate version, as plain text.
-pub(super) fn current_changelog() -> String {
-    changelog_section(CHANGELOG, env!("CARGO_PKG_VERSION"))
-        .unwrap_or_else(|| "No changelog entry for this version.".to_string())
+/// One `## vX.Y.Z` section of CHANGELOG.md.
+#[derive(Debug, PartialEq)]
+pub(super) struct ChangelogEntry {
+    pub version: String,
+    pub items: Vec<String>,
 }
 
-/// Extracts the `## vX.Y.Z` section of a Markdown changelog and turns `- item` bullets into
-/// blank-line separated paragraphs.
-fn changelog_section(markdown: &str, version: &str) -> Option<String> {
-    let heading = format!("## v{}", version.trim_start_matches('v'));
-    let mut lines = markdown.lines();
-    lines.find(|line| line.trim() == heading || line.trim().starts_with(&format!("{} ", heading)))?;
+/// The changelog of the installed release (`<root>/CHANGELOG.md`), or the bundled copy.
+pub(super) fn load_changelog(root: &Path) -> Vec<ChangelogEntry> {
+    let markdown = std::fs::read_to_string(root.join("CHANGELOG.md"));
+    parse_changelog(markdown.as_deref().unwrap_or(BUNDLED_CHANGELOG))
+}
 
-    let entries: Vec<String> = lines
-        .take_while(|line| !line.starts_with("## "))
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(|line| line.trim_start_matches("- ").replace("**", ""))
-        .collect();
-
-    if entries.is_empty() {
-        None
-    } else {
-        Some(entries.join("\n\n"))
+/// Splits a Markdown changelog into `## vX.Y.Z` sections of `- item` bullets.
+/// Text before the first section is ignored; `**bold**` markers are dropped and
+/// non-bullet lines are appended to the previous item.
+fn parse_changelog(markdown: &str) -> Vec<ChangelogEntry> {
+    let mut entries: Vec<ChangelogEntry> = Vec::new();
+    for line in markdown.lines().map(str::trim) {
+        if let Some(heading) = line.strip_prefix("## ") {
+            let version = heading.split_whitespace().next().unwrap_or(heading);
+            entries.push(ChangelogEntry {
+                version: version.to_string(),
+                items: Vec::new(),
+            });
+            continue;
+        }
+        let Some(entry) = entries.last_mut() else { continue };
+        if line.is_empty() {
+            continue;
+        }
+        let text = line.replace("**", "");
+        match text.strip_prefix("- ").or_else(|| text.strip_prefix("* ")) {
+            Some(item) => entry.items.push(item.to_string()),
+            None => match entry.items.last_mut() {
+                Some(last) => {
+                    last.push(' ');
+                    last.push_str(&text);
+                }
+                None => entry.items.push(text),
+            },
+        }
     }
+    entries
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const SAMPLE: &str = "# Changelog\n\n## v1.3.0 (2026-10-24)\n\n- **New UI**: rebuilt.\n- Faster.\n\n## v1.2.1\n\n- Old entry.\n";
+    const SAMPLE: &str = "# Changelog\n\nIntro text.\n\n## v1.3.0 (2026-10-24)\n\n- **New UI**: rebuilt.\n- Faster\n  and wrapped.\n\n## v1.2.1\n\n- Old entry.\n";
 
     #[test]
-    fn test_changelog_section_extracts_current_version() {
+    fn test_parse_changelog_sections() {
         assert_eq!(
-            changelog_section(SAMPLE, "1.3.0").as_deref(),
-            Some("New UI: rebuilt.\n\nFaster.")
+            parse_changelog(SAMPLE),
+            vec![
+                ChangelogEntry {
+                    version: "v1.3.0".into(),
+                    items: vec!["New UI: rebuilt.".into(), "Faster and wrapped.".into()],
+                },
+                ChangelogEntry {
+                    version: "v1.2.1".into(),
+                    items: vec!["Old entry.".into()],
+                },
+            ]
         );
-        assert_eq!(changelog_section(SAMPLE, "v1.2.1").as_deref(), Some("Old entry."));
     }
 
     #[test]
-    fn test_changelog_section_missing_version() {
-        assert_eq!(changelog_section(SAMPLE, "9.9.9"), None);
+    fn test_parse_changelog_without_sections() {
+        assert!(parse_changelog("# Changelog\n\nNothing yet.").is_empty());
     }
 
     #[test]
     fn test_bundled_changelog_has_current_version() {
-        assert!(changelog_section(CHANGELOG, env!("CARGO_PKG_VERSION")).is_some());
+        let current = format!("v{}", env!("CARGO_PKG_VERSION"));
+        assert!(parse_changelog(BUNDLED_CHANGELOG).iter().any(|e| e.version == current));
     }
 }

@@ -19,9 +19,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 CDN_BASE = "https://setup.rbxcdn.com"
 VERSION_API = "https://clientsettingscdn.roblox.com/v2/client-version/WindowsStudio64"
-DXVK_URL = "https://github.com/doitsujin/dxvk/releases/download/v3.1.1/dxvk-3.1.1.tar.gz"
+DXVK_VERSION = "3.1.1"
+DXVK_URL = f"https://github.com/doitsujin/dxvk/releases/download/v{DXVK_VERSION}/dxvk-{DXVK_VERSION}.tar.gz"
 DXVK_SHA256 = "40565b4a724aadc4433fa4e010b4b23916d9b1f1baeee64e17186db94f54e608"
 HTTP_TIMEOUT = 30
+# Read by the Cutlery UI to show the human-readable Studio version.
+STUDIO_VERSION_MARKER = "cutlery-studio-version.txt"
 
 # Official package to subdirectory mapping inside Roblox Studio directory
 PACKAGE_DIRS = {
@@ -169,6 +172,7 @@ def main():
     version_dir.mkdir(parents=True, exist_ok=True)
     
     packages = fetch_manifest(version_guid)
+    (version_dir / STUDIO_VERSION_MARKER).write_text(f"{version_id}\n")
     
     print(f"[3/5] Downloading, verifying integrity, and extracting {len(packages)} packages in parallel...")
     completed = 0
@@ -227,7 +231,7 @@ def main():
         if (data_dir / "dxvk" / "x64" / "d3d11.dll").exists():
             dxvk_x64 = data_dir / "dxvk" / "x64"
         else:
-            print(f"      Downloading DXVK v3.1.1 from {DXVK_URL}...")
+            print(f"      Downloading DXVK v{DXVK_VERSION} from {DXVK_URL}...")
             req = urllib.request.Request(DXVK_URL, headers={"User-Agent": "Cutlery/Linux"})
             with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as resp:
                 tar_bytes = resp.read()
@@ -247,6 +251,7 @@ def main():
                         if f_obj:
                             with open(dxvk_x64 / dll_filename, "wb") as out_f:
                                 out_f.write(f_obj.read())
+            (dxvk_x64.parent / "VERSION").write_text(f"{DXVK_VERSION}\n")
 
     if dxvk_x64.exists():
         for dll_name in ["d3d11.dll", "dxgi.dll"]:

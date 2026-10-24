@@ -1,6 +1,49 @@
+import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
-import { Env, Status, Actions } from "../state.slint";
+import { Env, Status, Actions, ChangelogSection } from "../state.slint";
 import { HeroButton } from "../components/buttons.slint";
+import { PillBadge } from "../components/card.slint";
+
+component ChangelogBlock inherits VerticalLayout {
+    in property <ChangelogSection> section;
+
+    spacing: 6px;
+
+    HorizontalLayout {
+        spacing: 10px;
+        Text {
+            text: root.section.version;
+            color: Theme.text;
+            font-family: Theme.display-font;
+            font-size: 18px;
+            vertical-alignment: center;
+        }
+        if root.section.current: VerticalLayout {
+            alignment: center;
+            PillBadge {
+                text: "installed";
+                tone: Theme.accent;
+            }
+        }
+        Rectangle { horizontal-stretch: 1; }
+    }
+
+    for item in root.section.items: HorizontalLayout {
+        spacing: 8px;
+        Text {
+            text: "•";
+            color: Theme.accent;
+            font-size: 14px;
+        }
+        Text {
+            text: item;
+            color: #ffffffe6;
+            font-size: 14px;
+            wrap: word-wrap;
+            horizontal-stretch: 1;
+        }
+    }
+}
 
 // Landing page drawn over the GeneralBg artwork: changelog in the middle,
 // Update / Launch hero buttons at the bottom corners.
@@ -18,12 +61,14 @@ export component HomePage inherits Rectangle {
                 alignment: center;
 
                 Rectangle {
-                    width: min(root.width - 160px, 620px);
+                    width: min(root.width - 160px, 640px);
+                    height: min(root.height - 240px, 400px);
                     background: #00000080;
                     border-radius: 16px;
 
                     HorizontalLayout {
                         padding: 22px;
+                        padding-right: 8px;
                         spacing: 18px;
 
                         Rectangle {
@@ -33,25 +78,34 @@ export component HomePage inherits Rectangle {
                         }
 
                         VerticalLayout {
-                            spacing: 4px;
-                            Text {
-                                text: "Changelog";
-                                color: Theme.text;
-                                font-family: Theme.display-font;
-                                font-size: 26px;
+                            spacing: 10px;
+
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text {
+                                    text: "Changelog";
+                                    color: Theme.text;
+                                    font-family: Theme.display-font;
+                                    font-size: 26px;
+                                }
+                                Text {
+                                    text: "Installed: " + Env.client-version;
+                                    color: Theme.text-muted;
+                                    font-family: Theme.display-font;
+                                    font-size: 14px;
+                                }
                             }
-                            Text {
-                                text: Env.client-version + " (latest release)";
-                                color: Theme.text-muted;
-                                font-family: Theme.display-font;
-                                font-size: 14px;
-                            }
-                            Rectangle { height: 8px; }
-                            Text {
-                                text: Env.changelog;
-                                color: #ffffffe6;
-                                font-size: 14px;
-                                wrap: word-wrap;
+
+                            ScrollView {
+                                vertical-stretch: 1;
+
+                                VerticalLayout {
+                                    padding-right: 14px;
+                                    spacing: 18px;
+                                    for section in Env.changelog: ChangelogBlock {
+                                        section: section;
+                                    }
+                                }
                             }
                         }
                     }

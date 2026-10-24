@@ -87,6 +87,7 @@ Link the plugin with 1-click in the **Universal MCP** tab of the Cutlery Control
 | `cutlery run [args...]` | Launches Roblox Studio with docking fix and DXVK optimizations. |
 | `cutlery mcp [args...]` | Runs the Universal MCP Bridge over `stdio`. |
 | `cutlery install` | Installs or updates Roblox Studio in the Wine prefix. |
+| `cutlery update` | Updates Cutlery from GitHub Releases (with confirmation), then Roblox Studio if a newer build exists. |
 | `cutlery register-desktop` | Registers desktop launcher and `roblox-studio://` URI handler. |
 | `cutlery doctor` | Diagnostic health check (Wine, Vulkan, NTSync, Prefix). |
 

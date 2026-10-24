@@ -2,10 +2,10 @@ import "../assets/fonts/CalSans-Regular.ttf";
 
 import { Palette } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { Settings, Env, Status, Shell, Actions, FastFlagItem, DoctorCheck, PendingAction, ResizeEdge } from "state.slint";
+import { Settings, Env, Status, Shell, Actions, FastFlagItem, DoctorCheck, ChangelogSection, PendingAction, ResizeEdge } from "state.slint";
 import { TitleBar } from "components/title-bar.slint";
 import { Sidebar, NavItem } from "components/sidebar.slint";
-import { StatusBar, DirtyBar, ConfirmDialog, ResizeGrips } from "components/overlays.slint";
+import { StatusBar, DirtyBar, ConfirmDialog, UpdateDialog, ResizeGrips } from "components/overlays.slint";
 import { HomePage } from "pages/home.slint";
 import { GraphicsPage } from "pages/graphics.slint";
 import { KernelPage } from "pages/kernel.slint";
@@ -13,7 +13,7 @@ import { FastFlagsPage } from "pages/fastflags.slint";
 import { McpPage } from "pages/mcp.slint";
 import { DoctorPage } from "pages/doctor.slint";
 
-export { Settings, Env, Status, Shell, Actions, FastFlagItem, DoctorCheck, PendingAction, ResizeEdge }
+export { Settings, Env, Status, Shell, Actions, FastFlagItem, DoctorCheck, ChangelogSection, PendingAction, ResizeEdge }
 
 export component AppWindow inherits Window {
     title: "Cutlery";
@@ -93,6 +93,8 @@ export component AppWindow inherits Window {
             x: (parent.width - self.width) / 2;
             y: parent.height - self.height - 40px;
         }
+
+        if Shell.update-open: UpdateDialog { }
 
         if Shell.confirm-open: ConfirmDialog { }
 

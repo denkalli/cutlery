@@ -77,7 +77,7 @@ export component DoctorPage inherits Page {
                 text: Env.studio-installed ? "Check Studio Updates" : "Install Roblox Studio";
                 primary: !Env.studio-installed;
                 enabled: !Status.busy;
-                clicked => { Actions.check-updates(); }
+                clicked => { Actions.check-studio-updates(); }
             }
             ActionButton {
                 text: "Open Prefix Directory";
