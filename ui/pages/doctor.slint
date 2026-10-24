@@ -1,0 +1,88 @@
+import { Theme } from "../theme.slint";
+import { Env, Status, Actions } from "../state.slint";
+import { Card, Page, InfoField } from "../components/card.slint";
+import { ActionButton } from "../components/buttons.slint";
+
+component CheckRow inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <int> level;
+
+    height: 36px;
+    background: Theme.surface-sunken;
+    border-color: Theme.border;
+    border-width: 1px;
+    border-radius: Theme.radius-sm;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 10px;
+
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 8px;
+                height: 8px;
+                border-radius: 4px;
+                background: Theme.level-color(root.level);
+            }
+        }
+        Text {
+            text: root.label;
+            color: Theme.text-muted;
+            font-size: 12px;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+        Text {
+            text: root.value;
+            color: Theme.level-color(root.level);
+            font-size: 12px;
+            font-weight: 700;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component DoctorPage inherits Page {
+    Card {
+        title: "Environment";
+        InfoField { label: "Roblox Studio:"; value: Env.studio-version; }
+        InfoField { label: "System Wine:"; value: Env.wine-version; }
+        InfoField { label: "Wine prefix:"; value: Env.prefix-path; }
+    }
+
+    Card {
+        title: "System Health Diagnostics";
+        action-text: "Run Diagnostics";
+        action-enabled: !Status.busy;
+        action => { Actions.run-doctor(); }
+
+        for check in Env.checks: CheckRow {
+            label: check.label;
+            value: check.value;
+            level: check.level;
+        }
+    }
+
+    Card {
+        title: "Maintenance";
+        description: "Install or update Roblox Studio inside the Cutlery Wine prefix.";
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            ActionButton {
+                text: Env.studio-installed ? "Check Studio Updates" : "Install Roblox Studio";
+                primary: !Env.studio-installed;
+                enabled: !Status.busy;
+                clicked => { Actions.check-updates(); }
+            }
+            ActionButton {
+                text: "Open Prefix Directory";
+                clicked => { Actions.open-prefix(); }
+            }
+        }
+    }
+}

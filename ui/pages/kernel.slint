@@ -1,0 +1,36 @@
+import { Settings, Env } from "../state.slint";
+import { Card, Page, SettingToggle } from "../components/card.slint";
+import { Theme } from "../theme.slint";
+
+export component KernelPage inherits Page {
+    Card {
+        title: "Linux Kernel Synchronization";
+        badge-text: Env.ntsync-available ? "/dev/ntsync available" : "NTSync unavailable";
+        badge-tone: Env.ntsync-available ? Theme.ok : Theme.warn;
+
+        SettingToggle {
+            title: "Kernel NTSync (/dev/ntsync)";
+            description: "In-kernel NT synchronization primitives for the best multithreaded performance.";
+            checked <=> Settings.ntsync-enabled;
+        }
+        SettingToggle {
+            title: "Wine Fsync (futex2)";
+            description: "Fast user-space mutexes, used as a fallback when NTSync is unavailable.";
+            checked <=> Settings.fsync-enabled;
+        }
+    }
+
+    Card {
+        title: "X11 Rootless Multi-Surface Docking";
+        SettingToggle {
+            title: "X11 Docking Fix Hook (wine_hook.so)";
+            description: "Feeds continuous WM_MOVING events to QtitanDocking so panel drags don't freeze.";
+            checked <=> Settings.docking-fix;
+        }
+        SettingToggle {
+            title: "Enforce X11 / Xwayland";
+            description: "Avoids pure Wayland multi-surface mode, which crashes docking on Plasma and GNOME.";
+            checked <=> Settings.force-x11;
+        }
+    }
+}

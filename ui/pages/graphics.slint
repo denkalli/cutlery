@@ -1,0 +1,62 @@
+import { Theme } from "../theme.slint";
+import { Settings } from "../state.slint";
+import { Card, Page, SettingToggle } from "../components/card.slint";
+import { ColorChip, SegmentButton } from "../components/buttons.slint";
+
+export component GraphicsPage inherits Page {
+    Card {
+        title: "Interface";
+        description: "Accent color and launcher behavior.";
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            for accent in Theme.accents: ColorChip {
+                label: accent.label;
+                chip-color: accent.color;
+                selected: Settings.accent-name == accent.name;
+                clicked => {
+                    Settings.accent-name = accent.name;
+                    Settings.changed();
+                }
+            }
+        }
+        SettingToggle {
+            title: "Open Cutlery Settings on launch";
+            description: "Opening Cutlery from the app drawer shows this dashboard instead of launching Studio directly.";
+            checked <=> Settings.always-open-ui;
+        }
+    }
+
+    Card {
+        title: "DXVK Vulkan Renderer & Swapchain";
+        SettingToggle {
+            title: "DirectComposition Dummy Swapchain";
+            description: "Emulates the composition swapchain so QtitanDocking multi-window guide markers render safely.";
+            checked <=> Settings.dummy-composition;
+        }
+        SettingToggle {
+            title: "DXVK Asynchronous Shader Pipelines";
+            description: "Compiles Vulkan pipelines in background threads to avoid viewport stutter.";
+            checked <=> Settings.dxvk-async;
+        }
+    }
+
+    Card {
+        title: "Display & Framerate";
+        description: "Roblox TaskScheduler FPS cap (DFIntTaskSchedulerTargetFps).";
+
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: start;
+            for fps in [60, 120, 144, 240, 0]: SegmentButton {
+                text: fps == 0 ? "Unlimited" : fps + " FPS";
+                active: Settings.target-fps == fps;
+                clicked => {
+                    Settings.target-fps = fps;
+                    Settings.changed();
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,64 @@
+import { Theme } from "../theme.slint";
+import { Settings, Env, Actions } from "../state.slint";
+import { Card, Page, SettingToggle, InfoField } from "../components/card.slint";
+import { ActionButton } from "../components/buttons.slint";
+
+export component McpPage inherits Page {
+    Card {
+        title: "Google Antigravity Integration";
+        description: "Links Roblox Studio MCP tools to the Antigravity plugin at ~/.gemini/config/plugins/roblox-studio.";
+        badge-text: Env.antigravity-linked ? "Plugin Linked" : "Needs Linking";
+        badge-tone: Env.antigravity-linked ? Theme.ok : Theme.warn;
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            ActionButton {
+                text: "Link Antigravity Plugin";
+                primary: true;
+                clicked => { Actions.link-antigravity(); }
+            }
+            ActionButton {
+                text: "Open Plugin Directory";
+                clicked => { Actions.open-antigravity-folder(); }
+            }
+        }
+        InfoField {
+            label: "Plugin command:";
+            value: Env.antigravity-path;
+        }
+    }
+
+    Card {
+        title: "AI Agent Bridge (Model Context Protocol)";
+        SettingToggle {
+            title: "Universal MCP Server Bridge";
+            description: "stdio JSON-RPC bridge for Claude Desktop, Cursor, Codex and Antigravity.";
+            checked <=> Settings.mcp-enabled;
+        }
+        SettingToggle {
+            title: "Pre-Initialization Shield";
+            description: "Answers non-standard agent probes locally (-32601) to protect the StudioMCP.exe handshake.";
+            checked <=> Settings.preinit-shield;
+        }
+    }
+
+    Card {
+        title: "Other AI Clients";
+        action-text: "Test MCP Bridge";
+        action => { Actions.test-mcp(); }
+
+        HorizontalLayout {
+            alignment: start;
+            ActionButton {
+                text: "Configure Claude Desktop";
+                clicked => { Actions.configure-claude(); }
+            }
+        }
+        InfoField {
+            label: "Bridge status:";
+            value: Env.mcp-test-status;
+            value-color: Theme.ok;
+        }
+    }
+}

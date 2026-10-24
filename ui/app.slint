@@ -1,0 +1,101 @@
+import "../assets/fonts/CalSans-Regular.ttf";
+
+import { Palette } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Settings, Env, Status, Shell, Actions, FastFlagItem, DoctorCheck, PendingAction, ResizeEdge } from "state.slint";
+import { TitleBar } from "components/title-bar.slint";
+import { Sidebar, NavItem } from "components/sidebar.slint";
+import { StatusBar, DirtyBar, ConfirmDialog, ResizeGrips } from "components/overlays.slint";
+import { HomePage } from "pages/home.slint";
+import { GraphicsPage } from "pages/graphics.slint";
+import { KernelPage } from "pages/kernel.slint";
+import { FastFlagsPage } from "pages/fastflags.slint";
+import { McpPage } from "pages/mcp.slint";
+import { DoctorPage } from "pages/doctor.slint";
+
+export { Settings, Env, Status, Shell, Actions, FastFlagItem, DoctorCheck, PendingAction, ResizeEdge }
+
+export component AppWindow inherits Window {
+    title: "Cutlery";
+    icon: @image-url("../assets/cutlery.png");
+    no-frame: true;
+    background: transparent;
+    min-width: 960px;
+    min-height: 600px;
+    preferred-width: 1250px;
+    preferred-height: 700px;
+
+    property <[NavItem]> pages: [
+        { icon: @image-url("../assets/icons/tab_general.svg"), label: "General" },
+        { icon: @image-url("../assets/icons/tab_graphics.svg"), label: "Graphics" },
+        { icon: @image-url("../assets/icons/tab_kernel.svg"), label: "Kernel" },
+        { icon: @image-url("../assets/icons/tab_fastflags.svg"), label: "FastFlags" },
+        { icon: @image-url("../assets/icons/tab_mcp.svg"), label: "Universal MCP" },
+        { icon: @image-url("../assets/icons/tab_doctor.svg"), label: "Doctor" },
+    ];
+
+    init => {
+        Palette.color-scheme = ColorScheme.dark;
+    }
+
+    Rectangle {
+        background: Theme.window-bg;
+        border-radius: Shell.maximized ? 0px : 8px;
+        border-width: Shell.maximized ? 0px : 1px;
+        border-color: Theme.window-border;
+        clip: true;
+
+        if Shell.page == 0: Image {
+            width: 100%;
+            height: 100%;
+            source: @image-url("../assets/general_bg.png");
+            image-fit: cover;
+        }
+        if Shell.page == 0: Rectangle {
+            background: @linear-gradient(180deg, #00000099 0%, transparent 16%, transparent 72%, #000000a6 100%);
+        }
+
+        VerticalLayout {
+            TitleBar {
+                title: root.pages[Shell.page].label;
+            }
+
+            HorizontalLayout {
+                vertical-stretch: 1;
+
+                Sidebar {
+                    items: root.pages;
+                    current: Shell.page;
+                    selected(index) => {
+                        Shell.page = index;
+                        if (index == 5) {
+                            Actions.run-doctor();
+                        }
+                    }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    if Shell.page == 0: HomePage { }
+                    if Shell.page == 1: GraphicsPage { }
+                    if Shell.page == 2: KernelPage { }
+                    if Shell.page == 3: FastFlagsPage { }
+                    if Shell.page == 4: McpPage { }
+                    if Shell.page == 5: DoctorPage { }
+                }
+            }
+
+            StatusBar { }
+        }
+
+        if Settings.dirty: DirtyBar {
+            width: self.preferred-width;
+            x: (parent.width - self.width) / 2;
+            y: parent.height - self.height - 40px;
+        }
+
+        if Shell.confirm-open: ConfirmDialog { }
+
+        if !Shell.maximized: ResizeGrips { }
+    }
+}

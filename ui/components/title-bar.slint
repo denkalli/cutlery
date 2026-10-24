@@ -1,0 +1,117 @@
+import { Theme } from "../theme.slint";
+import { Env, Actions, Shell } from "../state.slint";
+
+component WindowControlButton inherits Rectangle {
+    in property <color> dot-color;
+    in property <string> label;
+    callback clicked();
+
+    accessible-role: button;
+    accessible-label: root.label;
+
+    width: 16px;
+    height: 16px;
+    border-radius: self.width / 2;
+    background: ta.has-hover ? root.dot-color.brighter(20%) : root.dot-color;
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Frameless window header: brand on the left, page title centered, window controls on the right.
+// The whole bar drags the window; double-click toggles maximize.
+export component TitleBar inherits Rectangle {
+    in property <string> title;
+
+    height: 44px;
+
+    TouchArea {
+        double-clicked => { Actions.toggle-maximize(); }
+        WindowMoveArea { }
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 14px;
+        spacing: 8px;
+
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 0;
+            Image {
+                source: @image-url("../../assets/cutlery.png");
+                width: 28px;
+                height: 28px;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 0;
+            spacing: 0px;
+            Text {
+                text: "Cutlery";
+                color: Theme.text;
+                font-family: Theme.display-font;
+                font-size: 20px;
+            }
+            Rectangle {
+                height: 1px;
+                background: Theme.accent;
+            }
+            Text {
+                text: "Version " + Env.client-version;
+                color: Theme.text-muted;
+                font-size: 9px;
+            }
+        }
+
+        Rectangle { horizontal-stretch: 1; }
+
+        HorizontalLayout {
+            spacing: 12px;
+            horizontal-stretch: 0;
+            VerticalLayout {
+                alignment: center;
+                WindowControlButton {
+                    dot-color: #d7a12c;
+                    label: "Minimize";
+                    clicked => { Actions.minimize-window(); }
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                WindowControlButton {
+                    dot-color: #74df4d;
+                    label: Shell.maximized ? "Restore" : "Maximize";
+                    clicked => { Actions.toggle-maximize(); }
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                WindowControlButton {
+                    dot-color: #d22b2b;
+                    label: "Close";
+                    clicked => { Actions.close-window(); }
+                }
+            }
+        }
+    }
+
+    page-title := Text {
+        x: (root.width - self.width) / 2;
+        y: 6px;
+        text: root.title;
+        color: Theme.text;
+        font-family: Theme.display-font;
+        font-size: 24px;
+    }
+    Rectangle {
+        width: max(page-title.width + 48px, 160px);
+        height: 1px;
+        x: (root.width - self.width) / 2;
+        y: page-title.y + page-title.height + 2px;
+        background: Theme.accent;
+    }
+}

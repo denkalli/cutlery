@@ -1,0 +1,96 @@
+// Shared state between the Slint UI and the Rust backend (src/ui/).
+// Rust owns persistence and dirty tracking; the UI only edits these values
+// and calls `Settings.changed()` after every user edit.
+
+export struct FastFlagItem {
+    name: string,
+    value: string,
+}
+
+// level: 0 = ok, 1 = warning, 2 = failure, 3 = pending
+export struct DoctorCheck {
+    label: string,
+    value: string,
+    level: int,
+}
+
+export enum PendingAction { close, launch }
+
+export enum ResizeEdge { north, south, east, west, north-east, north-west, south-east, south-west }
+
+export global Settings {
+    in-out property <string> accent-name: "blue";
+    in-out property <bool> always-open-ui: true;
+
+    in-out property <int> target-fps: 60;
+    in-out property <bool> dummy-composition: true;
+    in-out property <bool> dxvk-async: true;
+
+    in-out property <bool> ntsync-enabled: true;
+    in-out property <bool> fsync-enabled: true;
+    in-out property <bool> docking-fix: true;
+    in-out property <bool> force-x11: true;
+
+    in-out property <string> fastflags-preset: "default";
+    in-out property <bool> telemetry-bypass: true;
+    in-out property <bool> gpu-light-culling: true;
+    in-out property <[FastFlagItem]> custom-flags;
+
+    in-out property <bool> mcp-enabled: true;
+    in-out property <bool> preinit-shield: true;
+
+    // Set by Rust after comparing the edited values with the saved config.
+    in property <bool> dirty;
+
+    callback changed();
+    callback add-custom-flag(string, string);
+    callback remove-custom-flag(string);
+    callback apply();
+    callback revert();
+}
+
+export global Env {
+    in property <string> client-version: "v0.0.0";
+    in property <string> studio-version: "Checking…";
+    in property <string> wine-version: "Checking…";
+    in property <string> dxvk-version;
+    in property <string> prefix-path;
+    in property <bool> studio-installed;
+    in property <bool> ntsync-available;
+    in property <[DoctorCheck]> checks;
+    in property <string> changelog;
+
+    in property <bool> antigravity-linked;
+    in property <string> antigravity-path;
+    in property <string> mcp-test-status: "Not tested yet";
+}
+
+export global Status {
+    in property <string> text;
+    in property <int> jobs;
+    out property <bool> busy: jobs > 0;
+}
+
+export global Shell {
+    in-out property <int> page: 0;
+    in property <bool> maximized;
+    in-out property <bool> confirm-open;
+    in-out property <PendingAction> pending-action;
+}
+
+export global Actions {
+    callback launch-studio();
+    callback check-updates();
+    callback open-prefix();
+    callback run-doctor();
+    callback link-antigravity();
+    callback open-antigravity-folder();
+    callback configure-claude();
+    callback test-mcp();
+    callback confirm-proceed(PendingAction, bool);
+
+    callback minimize-window();
+    callback toggle-maximize();
+    callback close-window();
+    callback start-resize(ResizeEdge);
+}

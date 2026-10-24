@@ -1,0 +1,76 @@
+import { Theme } from "../theme.slint";
+import { Env, Status, Actions } from "../state.slint";
+import { HeroButton } from "../components/buttons.slint";
+
+// Landing page drawn over the GeneralBg artwork: changelog in the middle,
+// Update / Launch hero buttons at the bottom corners.
+export component HomePage inherits Rectangle {
+    VerticalLayout {
+        padding-left: 36px;
+        padding-right: 36px;
+        padding-bottom: 20px;
+
+        HorizontalLayout {
+            alignment: center;
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                alignment: center;
+
+                Rectangle {
+                    width: min(root.width - 160px, 620px);
+                    background: #00000080;
+                    border-radius: 16px;
+
+                    HorizontalLayout {
+                        padding: 22px;
+                        spacing: 18px;
+
+                        Rectangle {
+                            width: 2px;
+                            border-radius: 1px;
+                            background: Theme.accent;
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text {
+                                text: "Changelog";
+                                color: Theme.text;
+                                font-family: Theme.display-font;
+                                font-size: 26px;
+                            }
+                            Text {
+                                text: Env.client-version + " (latest release)";
+                                color: Theme.text-muted;
+                                font-family: Theme.display-font;
+                                font-size: 14px;
+                            }
+                            Rectangle { height: 8px; }
+                            Text {
+                                text: Env.changelog;
+                                color: #ffffffe6;
+                                font-size: 14px;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            vertical-stretch: 0;
+            HeroButton {
+                text: "Update";
+                enabled: !Status.busy;
+                clicked => { Actions.check-updates(); }
+            }
+            Rectangle { horizontal-stretch: 1; }
+            HeroButton {
+                text: "Launch";
+                clicked => { Actions.launch-studio(); }
+            }
+        }
+    }
+}

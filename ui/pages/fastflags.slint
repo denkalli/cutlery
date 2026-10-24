@@ -1,0 +1,178 @@
+import { LineEdit } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Settings } from "../state.slint";
+import { Card, Page, SettingToggle } from "../components/card.slint";
+import { ActionButton, SegmentButton } from "../components/buttons.slint";
+
+struct Preset {
+    id: string,
+    label: string,
+    fps: int,
+    light-culling: bool,
+}
+
+component FlagRow inherits Rectangle {
+    in property <string> name;
+    in property <string> value;
+    callback remove();
+
+    height: 36px;
+    background: Theme.surface-sunken;
+    border-color: Theme.border;
+    border-width: 1px;
+    border-radius: Theme.radius-sm;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 6px;
+        spacing: 10px;
+
+        Text {
+            text: root.name;
+            color: Theme.text;
+            font-size: 12px;
+            font-weight: 600;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+        Text {
+            text: "=";
+            color: Theme.text-faint;
+            font-size: 12px;
+            vertical-alignment: center;
+        }
+        Text {
+            text: root.value;
+            color: Theme.accent;
+            font-size: 12px;
+            font-weight: 600;
+            vertical-alignment: center;
+            overflow: elide;
+            horizontal-stretch: 1;
+        }
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 72px;
+                height: 24px;
+                border-radius: 4px;
+                background: ta.has-hover ? Theme.danger.transparentize(70%) : transparent;
+                border-color: ta.has-hover ? Theme.danger : Theme.border-strong;
+                border-width: 1px;
+                accessible-role: button;
+                accessible-label: "Remove " + root.name;
+
+                ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.remove(); }
+                }
+                Text {
+                    text: "Remove";
+                    color: ta.has-hover ? Theme.text : Theme.danger;
+                    font-size: 11px;
+                    font-weight: 600;
+                }
+            }
+        }
+    }
+}
+
+export component FastFlagsPage inherits Page {
+    property <[Preset]> presets: [
+        { id: "default", label: "Default (Balanced)", fps: 60, light-culling: true },
+        { id: "high_fps", label: "High Refresh (Uncapped)", fps: 144, light-culling: true },
+        { id: "low_power", label: "Low Resource (Laptop)", fps: 60, light-culling: false },
+    ];
+    property <string> new-name;
+    property <string> new-value;
+
+    Card {
+        title: "FastFlags Presets";
+        description: "Presets also adjust the framerate cap and telemetry options.";
+
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: start;
+            for preset in root.presets: SegmentButton {
+                text: preset.label;
+                active: Settings.fastflags-preset == preset.id;
+                clicked => {
+                    Settings.fastflags-preset = preset.id;
+                    Settings.telemetry-bypass = true;
+                    Settings.gpu-light-culling = preset.light-culling;
+                    Settings.target-fps = preset.fps;
+                    Settings.changed();
+                }
+            }
+        }
+    }
+
+    Card {
+        title: "Optimizations & Telemetry";
+        SettingToggle {
+            title: "Disable Background Telemetry Wait";
+            description: "Stops Studio from hanging on boot or exit while waiting for diagnostic endpoints.";
+            checked <=> Settings.telemetry-bypass;
+        }
+        SettingToggle {
+            title: "Fast GPU Light Culling (LightGrid3)";
+            description: "Hardware-accelerated light culling in the 3D viewport.";
+            checked <=> Settings.gpu-light-culling;
+        }
+    }
+
+    Card {
+        title: "Custom FastFlags";
+        description: "Injected into ClientAppSettings.json (FFlag…, DFInt…, DFFlag…).";
+
+        HorizontalLayout {
+            spacing: 8px;
+            LineEdit {
+                placeholder-text: "Flag name (e.g. FFlagDebugDisplayFPS)";
+                text <=> root.new-name;
+                horizontal-stretch: 3;
+            }
+            LineEdit {
+                placeholder-text: "Value (e.g. True or 144)";
+                text <=> root.new-value;
+                horizontal-stretch: 2;
+                accepted => {
+                    if (root.new-name != "" && root.new-value != "") {
+                        Settings.add-custom-flag(root.new-name, root.new-value);
+                        root.new-name = "";
+                        root.new-value = "";
+                    }
+                }
+            }
+            ActionButton {
+                text: "Add Flag";
+                primary: true;
+                enabled: root.new-name != "" && root.new-value != "";
+                clicked => {
+                    Settings.add-custom-flag(root.new-name, root.new-value);
+                    root.new-name = "";
+                    root.new-value = "";
+                }
+            }
+        }
+
+        for flag in Settings.custom-flags: FlagRow {
+            name: flag.name;
+            value: flag.value;
+            remove => { Settings.remove-custom-flag(flag.name); }
+        }
+
+        if Settings.custom-flags.length == 0: Rectangle {
+            height: 40px;
+            background: Theme.surface-sunken;
+            border-color: Theme.border;
+            border-width: 1px;
+            border-radius: Theme.radius-sm;
+            Text {
+                text: "No custom FastFlags yet. Enter a flag name and value above.";
+                color: Theme.text-faint;
+                font-size: 12px;
+            }
+        }
+    }
+}

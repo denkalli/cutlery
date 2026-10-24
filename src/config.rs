@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GeneralConfig {
     pub prefix_path: String,
     pub wine_binary: String,
@@ -23,7 +23,7 @@ fn default_accent_color() -> String {
     "blue".to_string()
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GraphicsConfig {
     pub target_fps: i32,
     pub dummy_composition: bool,
@@ -45,7 +45,7 @@ impl Default for GraphicsConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct KernelConfig {
     pub ntsync: bool,
     pub fsync: bool,
@@ -64,7 +64,7 @@ impl Default for KernelConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FastFlagsConfig {
     pub preset: String,
     pub telemetry_bypass: bool,
@@ -84,7 +84,7 @@ impl Default for FastFlagsConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct McpConfig {
     pub enabled: bool,
     pub preinit_shield: bool,
@@ -99,20 +99,9 @@ impl Default for McpConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExperimentalConfig {
-    pub experimental_ui: bool,
-}
-
-impl Default for ExperimentalConfig {
-    fn default() -> Self {
-        Self {
-            experimental_ui: false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+// Unknown sections (such as the old `[experimental]` table) are ignored on load
+// and dropped on the next save.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct CutleryConfig {
     pub general: GeneralConfig,
@@ -120,10 +109,18 @@ pub struct CutleryConfig {
     pub kernel: KernelConfig,
     pub fastflags: FastFlagsConfig,
     pub mcp: McpConfig,
-    pub experimental: ExperimentalConfig,
 }
 
 impl CutleryConfig {
+    /// Wine prefix used for Studio: the configured path, or `<root>/sandbox/prefix`.
+    pub fn prefix_dir(&self, root: &Path) -> PathBuf {
+        if self.general.prefix_path.is_empty() {
+            root.join("sandbox").join("prefix")
+        } else {
+            PathBuf::from(&self.general.prefix_path)
+        }
+    }
+
     pub fn config_path() -> PathBuf {
         if let Ok(home) = std::env::var("HOME") {
             PathBuf::from(home)
@@ -229,13 +226,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_experimental_config_default() {
-        let cfg = CutleryConfig::default();
-        assert!(!cfg.experimental.experimental_ui);
-    }
-
-    #[test]
-    fn test_experimental_config_deserialize_missing() {
+    fn test_partial_config_uses_defaults() {
         let toml_str = r#"
             [general]
             prefix_path = ""
@@ -243,18 +234,43 @@ mod tests {
             always_open_ui = true
         "#;
         let cfg: CutleryConfig = toml::from_str(toml_str).unwrap();
-        assert!(!cfg.experimental.experimental_ui);
+        assert_eq!(cfg, CutleryConfig::default());
     }
 
     #[test]
-    fn test_experimental_config_toggle_and_serialize() {
-        let mut cfg = CutleryConfig::default();
-        cfg.experimental.experimental_ui = true;
-        let toml_str = toml::to_string_pretty(&cfg).unwrap();
-        assert!(toml_str.contains("experimental_ui = true"));
+    fn test_legacy_experimental_section_is_ignored() {
+        let toml_str = r#"
+            [graphics]
+            target_fps = 144
+            dummy_composition = true
+            dxvk_async = true
+            dpi_scale = "1.0"
+            accent_color = "rose"
 
-        let reloaded: CutleryConfig = toml::from_str(&toml_str).unwrap();
-        assert!(reloaded.experimental.experimental_ui);
+            [experimental]
+            experimental_ui = true
+        "#;
+        let cfg: CutleryConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(cfg.graphics.target_fps, 144);
+        assert_eq!(cfg.graphics.accent_color, "rose");
+        assert!(!toml::to_string_pretty(&cfg).unwrap().contains("experimental"));
+    }
+
+    #[test]
+    fn test_roundtrip_preserves_equality() {
+        let mut cfg = CutleryConfig::default();
+        cfg.fastflags.custom.insert("FFlagDebugDisplayFPS".into(), "True".into());
+        let reloaded: CutleryConfig = toml::from_str(&toml::to_string_pretty(&cfg).unwrap()).unwrap();
+        assert_eq!(cfg, reloaded);
+    }
+
+    #[test]
+    fn test_prefix_dir() {
+        let root = Path::new("/opt/cutlery");
+        let mut cfg = CutleryConfig::default();
+        assert_eq!(cfg.prefix_dir(root), root.join("sandbox").join("prefix"));
+        cfg.general.prefix_path = "/data/prefix".into();
+        assert_eq!(cfg.prefix_dir(root), PathBuf::from("/data/prefix"));
     }
 }
 

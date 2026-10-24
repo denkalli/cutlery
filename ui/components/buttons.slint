@@ -1,0 +1,164 @@
+import { Theme } from "../theme.slint";
+
+export component ActionButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> primary;
+    in property <bool> enabled: true;
+    callback clicked();
+
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+
+    height: 32px;
+    border-radius: Theme.radius-md;
+    border-width: 1px;
+    border-color: root.primary ? transparent : Theme.border-strong;
+    background: !root.enabled ? Theme.surface-sunken
+        : root.primary ? (ta.pressed ? Theme.accent.darker(15%) : ta.has-hover ? Theme.accent.brighter(10%) : Theme.accent)
+        : (ta.pressed ? Theme.surface-sunken : ta.has-hover ? Theme.surface-hover : Theme.surface);
+    animate background { duration: 120ms; }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: root.enabled ? Theme.text : Theme.text-faint;
+            font-size: 12px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// Toggle-like button used in segmented groups (FPS caps, presets).
+export component SegmentButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> active;
+    callback clicked();
+
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-checked: root.active;
+
+    height: 30px;
+    border-radius: Theme.radius-sm;
+    border-width: 1px;
+    border-color: root.active ? Theme.accent : Theme.border;
+    background: root.active ? Theme.accent : (ta.pressed ? Theme.surface-sunken : ta.has-hover ? Theme.surface-hover : Theme.surface-sunken);
+    animate background { duration: 120ms; }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: root.active ? Theme.text : (ta.has-hover ? Theme.text : Theme.text-muted);
+            font-size: 12px;
+            font-weight: root.active ? 600 : 500;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component ColorChip inherits Rectangle {
+    in property <string> label;
+    in property <color> chip-color;
+    in property <bool> selected;
+    callback clicked();
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-checked: root.selected;
+
+    height: 30px;
+    border-radius: Theme.radius-sm;
+    border-width: 1px;
+    border-color: root.selected ? root.chip-color.brighter(20%) : Theme.border;
+    background: root.selected ? root.chip-color : (ta.has-hover ? Theme.surface-hover : Theme.surface-sunken);
+    animate background { duration: 120ms; }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 12px;
+        spacing: 6px;
+        alignment: center;
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 8px;
+                height: 8px;
+                border-radius: 4px;
+                background: root.selected ? Theme.text : root.chip-color;
+            }
+        }
+        Text {
+            text: root.label;
+            color: root.selected ? Theme.text : Theme.text-muted;
+            font-size: 12px;
+            font-weight: root.selected ? 600 : 500;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// Large Cal Sans label with an underline that grows and takes the accent on hover
+// (Figma "Launch" / "Update" decorline buttons).
+export component HeroButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    callback clicked();
+
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+
+    VerticalLayout {
+        Text {
+            text: root.text;
+            color: root.enabled ? Theme.text : Theme.text.transparentize(50%);
+            font-family: Theme.display-font;
+            font-size: 60px;
+            horizontal-alignment: center;
+        }
+        // Room for the decorline below.
+        Rectangle { height: 4px; }
+    }
+
+    Rectangle {
+        y: root.height - self.height;
+        x: (root.width - self.width) / 2;
+        height: 2px;
+        width: ta.has-hover && root.enabled ? root.width : root.width * 0.85;
+        background: ta.has-hover && root.enabled ? Theme.accent : Theme.text;
+        animate background { duration: 150ms; }
+        animate width { duration: 180ms; easing: ease-out; }
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+}

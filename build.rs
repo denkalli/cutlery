@@ -2,7 +2,7 @@ use std::path::Path;
 use std::process::Command;
 
 fn main() {
-    slint_build::compile("ui/appwindow.slint").unwrap();
+    slint_build::compile("ui/app.slint").unwrap();
 
     println!("cargo:rerun-if-changed=custom-libs/wine_hook.c");
     println!("cargo:rerun-if-changed=custom-libs/Makefile");

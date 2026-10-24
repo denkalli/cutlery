@@ -1,0 +1,76 @@
+import { Theme } from "../theme.slint";
+
+export struct NavItem {
+    icon: image,
+    label: string,
+}
+
+component NavIcon inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    in property <bool> active;
+    callback clicked();
+
+    accessible-role: tab;
+    accessible-label: root.label;
+
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: root.active ? Theme.accent.transparentize(82%) : (ta.has-hover ? #ffffff14 : transparent);
+    animate background { duration: 150ms; }
+
+    Image {
+        source: root.icon;
+        width: 24px;
+        height: 24px;
+        colorize: root.active ? Theme.accent : (ta.has-hover ? Theme.text : Theme.text.transparentize(20%));
+        animate colorize { duration: 150ms; }
+    }
+
+    Rectangle {
+        x: 0px;
+        width: 3px;
+        height: root.active ? 18px : 0px;
+        border-radius: 1.5px;
+        background: Theme.accent;
+        animate height { duration: 150ms; easing: ease-out; }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Vertical icon rail (Figma "Tabs Options"), centered on the left edge.
+export component Sidebar inherits Rectangle {
+    in property <[NavItem]> items;
+    in property <int> current;
+    callback selected(int);
+
+    accessible-role: tab-list;
+    width: 60px;
+
+    VerticalLayout {
+        alignment: center;
+        padding-left: 8px;
+        padding-right: 8px;
+
+        Rectangle {
+            background: #00000059;
+            border-radius: 14px;
+
+            VerticalLayout {
+                padding: 2px;
+                spacing: 4px;
+                for item[i] in root.items: NavIcon {
+                    icon: item.icon;
+                    label: item.label;
+                    active: i == root.current;
+                    clicked => { root.selected(i); }
+                }
+            }
+        }
+    }
+}

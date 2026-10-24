@@ -1,0 +1,167 @@
+import { Spinner } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Settings, Status, Env, Shell, Actions, PendingAction, ResizeEdge } from "../state.slint";
+import { ActionButton } from "buttons.slint";
+
+export component StatusBar inherits Rectangle {
+    height: 28px;
+    background: #00000066;
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 8px;
+
+        if Status.busy: VerticalLayout {
+            alignment: center;
+            Spinner {
+                width: 14px;
+                height: 14px;
+                indeterminate: true;
+            }
+        }
+        Text {
+            text: Status.text;
+            color: Theme.text-muted;
+            font-size: 12px;
+            vertical-alignment: center;
+            overflow: elide;
+            horizontal-stretch: 1;
+        }
+        Text {
+            text: "Studio: " + Env.studio-version;
+            color: Env.studio-installed ? Theme.text-muted : Theme.warn;
+            font-size: 12px;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// Floating bar shown while the edited settings differ from the saved config.
+export component DirtyBar inherits Rectangle {
+    height: 48px;
+    border-radius: self.height / 2;
+    background: #1b1b22;
+    border-color: Theme.accent;
+    border-width: 1px;
+    drop-shadow-blur: 16px;
+    drop-shadow-color: #000000;
+
+    HorizontalLayout {
+        padding-left: 20px;
+        padding-right: 8px;
+        spacing: 10px;
+        alignment: center;
+
+        Text {
+            text: "Unapplied changes";
+            color: Theme.text;
+            font-size: 12px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+        VerticalLayout {
+            alignment: center;
+            ActionButton {
+                text: "Revert";
+                clicked => { Settings.revert(); }
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            ActionButton {
+                text: "Apply";
+                primary: true;
+                clicked => { Settings.apply(); }
+            }
+        }
+    }
+}
+
+export component ConfirmDialog inherits Rectangle {
+    background: Theme.scrim;
+
+    // Swallow clicks on the backdrop.
+    TouchArea { }
+
+    Rectangle {
+        width: 460px;
+        height: box.preferred-height;
+        background: #1e1e26;
+        border-color: Theme.border-strong;
+        border-width: 1px;
+        border-radius: Theme.radius-lg;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: #000000;
+
+        box := VerticalLayout {
+            padding: 20px;
+            spacing: 18px;
+
+            VerticalLayout {
+                spacing: 6px;
+                Text {
+                    text: Shell.pending-action == PendingAction.close ? "Close with unapplied changes?" : "Launch with unapplied changes?";
+                    color: Theme.text;
+                    font-size: 15px;
+                    font-weight: 700;
+                }
+                Text {
+                    text: "Some settings were changed but not applied. Apply them before continuing, or discard them.";
+                    color: Theme.text-muted;
+                    font-size: 12px;
+                    wrap: word-wrap;
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: end;
+                ActionButton {
+                    text: "Cancel";
+                    clicked => { Shell.confirm-open = false; }
+                }
+                ActionButton {
+                    text: "Discard & Continue";
+                    clicked => {
+                        Shell.confirm-open = false;
+                        Actions.confirm-proceed(Shell.pending-action, false);
+                    }
+                }
+                ActionButton {
+                    text: "Apply & Continue";
+                    primary: true;
+                    clicked => {
+                        Shell.confirm-open = false;
+                        Actions.confirm-proceed(Shell.pending-action, true);
+                    }
+                }
+            }
+        }
+    }
+}
+
+component ResizeGrip inherits TouchArea {
+    in property <ResizeEdge> edge;
+
+    pointer-event(event) => {
+        if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+            Actions.start-resize(root.edge);
+        }
+    }
+}
+
+// Invisible grips along the edges of the frameless window.
+export component ResizeGrips inherits Rectangle {
+    property <length> t: 5px;
+    property <length> c: 12px;
+
+    ResizeGrip { edge: ResizeEdge.north; mouse-cursor: ns-resize; x: c; y: 0; width: parent.width - 2 * c; height: t; }
+    ResizeGrip { edge: ResizeEdge.south; mouse-cursor: ns-resize; x: c; y: parent.height - t; width: parent.width - 2 * c; height: t; }
+    ResizeGrip { edge: ResizeEdge.west; mouse-cursor: ew-resize; x: 0; y: c; width: t; height: parent.height - 2 * c; }
+    ResizeGrip { edge: ResizeEdge.east; mouse-cursor: ew-resize; x: parent.width - t; y: c; width: t; height: parent.height - 2 * c; }
+    ResizeGrip { edge: ResizeEdge.north-west; mouse-cursor: nwse-resize; x: 0; y: 0; width: c; height: c; }
+    ResizeGrip { edge: ResizeEdge.south-east; mouse-cursor: nwse-resize; x: parent.width - c; y: parent.height - c; width: c; height: c; }
+    ResizeGrip { edge: ResizeEdge.north-east; mouse-cursor: nesw-resize; x: parent.width - c; y: 0; width: c; height: c; }
+    ResizeGrip { edge: ResizeEdge.south-west; mouse-cursor: nesw-resize; x: 0; y: parent.height - c; width: c; height: c; }
+}

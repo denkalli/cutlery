@@ -1,0 +1,57 @@
+import { Settings } from "state.slint";
+
+export struct AccentOption {
+    name: string,
+    label: string,
+    color: color,
+}
+
+export global Theme {
+    out property <[AccentOption]> accents: [
+        { name: "blue", label: "Blue", color: #3b82f6 },
+        { name: "cyan", label: "Cyan", color: #0ea5e9 },
+        { name: "indigo", label: "Indigo", color: #6366f1 },
+        { name: "emerald", label: "Emerald", color: #10b981 },
+        { name: "amber", label: "Amber", color: #f59e0b },
+        { name: "violet", label: "Violet", color: #8b5cf6 },
+        { name: "rose", label: "Rose", color: #f43f5e },
+    ];
+    out property <color> accent: accent-for(Settings.accent-name);
+
+    out property <color> window-bg: #202024;
+    out property <color> window-border: #050404;
+    out property <color> surface: #28282e;
+    out property <color> surface-hover: #2f2f37;
+    out property <color> surface-sunken: #1b1b1f;
+    out property <color> border: #34343c;
+    out property <color> border-strong: #42424e;
+    out property <color> scrim: #00000099;
+
+    out property <color> text: #ffffff;
+    out property <color> text-muted: #9ca3af;
+    out property <color> text-faint: #6b7280;
+
+    out property <color> ok: #34d399;
+    out property <color> info: #38bdf8;
+    out property <color> warn: #fbbf24;
+    out property <color> danger: #f87171;
+
+    out property <string> display-font: "Cal Sans";
+    out property <length> radius-sm: 6px;
+    out property <length> radius-md: 8px;
+    out property <length> radius-lg: 12px;
+
+    public pure function accent-for(name: string) -> color {
+        name == "cyan" ? #0ea5e9
+            : name == "indigo" ? #6366f1
+            : name == "emerald" ? #10b981
+            : name == "amber" ? #f59e0b
+            : name == "violet" ? #8b5cf6
+            : name == "rose" ? #f43f5e
+            : #3b82f6
+    }
+
+    public pure function level-color(level: int) -> color {
+        level == 0 ? ok : level == 1 ? warn : level == 2 ? danger : text-faint
+    }
+}

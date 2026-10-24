@@ -95,6 +95,7 @@ pub(crate) fn find_studio_exe(prefix: &Path) -> Option<PathBuf> {
     None
 }
 
+pub(crate) const DXVK_VERSION: &str = "3.1.1";
 const DXVK_SHA256: &str = "40565b4a724aadc4433fa4e010b4b23916d9b1f1baeee64e17186db94f54e608";
 
 pub(crate) fn sanitize_studio_arg(arg: &str) -> Result<String, String> {
@@ -199,14 +200,17 @@ fn ensure_dxvk(sandbox: &Path, data_dir: &Path) -> PathBuf {
         return data_dxvk;
     }
 
-    println!("[Cutlery] DXVK not found locally. Downloading DXVK v3.1.1 (with dummy composition swapchain support)...");
+    println!("[Cutlery] DXVK not found locally. Downloading DXVK v{} (with dummy composition swapchain support)...", DXVK_VERSION);
     let dxvk_root = sandbox.join("dxvk");
     let _ = fs::create_dir_all(&dxvk_root);
-    let tarball = sandbox.join("dxvk-3.1.1.tar.gz");
-    let url = "https://github.com/doitsujin/dxvk/releases/download/v3.1.1/dxvk-3.1.1.tar.gz";
+    let tarball = sandbox.join(format!("dxvk-{}.tar.gz", DXVK_VERSION));
+    let url = format!(
+        "https://github.com/doitsujin/dxvk/releases/download/v{0}/dxvk-{0}.tar.gz",
+        DXVK_VERSION
+    );
 
     let curl_status = Command::new("curl")
-        .args(["-fSL", url, "-o", &tarball.to_string_lossy()])
+        .args(["-fSL", &url, "-o", &tarball.to_string_lossy()])
         .status();
 
     if let Ok(status) = curl_status {
@@ -236,7 +240,7 @@ fn ensure_dxvk(sandbox: &Path, data_dir: &Path) -> PathBuf {
                         .status();
                     let _ = fs::remove_file(&tarball);
                     if sandbox_dxvk.join("d3d11.dll").exists() {
-                        println!("[Cutlery] DXVK v3.1.1 downloaded, verified (SHA-256), and extracted successfully.");
+                        println!("[Cutlery] DXVK v{} downloaded, verified (SHA-256), and extracted successfully.", DXVK_VERSION);
                     }
                 }
                 _ => {
@@ -256,11 +260,7 @@ pub(crate) fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
 
     let data_dir = root.join("data");
     let sandbox = root.join("sandbox");
-    let prefix = if !config.general.prefix_path.is_empty() {
-        PathBuf::from(&config.general.prefix_path)
-    } else {
-        sandbox.join("prefix")
-    };
+    let prefix = config.prefix_dir(&root);
     let custom_libs = root.join("custom-libs");
 
     println!("========================================================");
@@ -286,7 +286,7 @@ pub(crate) fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
         let _ = fs::write(&app_settings, xml);
     }
 
-    // 2. Sync DXVK dlls and config (auto-downloads DXVK v3.1.1 if missing on fresh clones)
+    // 2. Sync DXVK dlls and config (auto-downloads DXVK_VERSION if missing on fresh clones)
     let dxvk_x64 = ensure_dxvk(&sandbox, &data_dir);
     if dxvk_x64.join("d3d11.dll").exists() {
         let _ = fs::copy(dxvk_x64.join("d3d11.dll"), studio_dir.join("d3d11.dll"));
@@ -442,8 +442,10 @@ pub(crate) fn cmd_install() -> Result<ExitStatus, std::io::Error> {
     };
 
     if !install_sh.exists() {
-        eprintln!("[Cutlery] Error: scripts/install_studio.sh not found.");
-        std::process::exit(1);
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "scripts/install_studio.sh not found",
+        ));
     }
 
     Command::new("bash").arg(&install_sh).status()
@@ -608,7 +610,7 @@ fn cmd_doctor() {
         .and_then(|e| e.parent().map(|p| p.join("d3d11.dll")))
         .map_or(false, |p| p.exists());
     if dxvk_dll.exists() || studio_dxvk {
-        println!("DXVK Vulkan:      [OK] DXVK v3.1.1 d3d11.dll & dxgi.dll active");
+        println!("DXVK Vulkan:      [OK] DXVK v{} d3d11.dll & dxgi.dll active", DXVK_VERSION);
     } else {
         println!("DXVK Vulkan:      [NOTICE] Not cached yet (will auto-download on 'cutlery run')");
     }
