@@ -12,7 +12,8 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use crate::theme::{Rgba, ThemeDef};
+use crate::config::AppearanceConfig;
+use crate::theme::{self, Rgba, ThemeDef};
 
 /// Patched copy written next to `RobloxStudioBeta.exe`.
 pub const PATCHED_EXE: &str = "RobloxStudioCutlery.exe";
@@ -363,6 +364,41 @@ pub fn write_theme(studio_dir: &Path, originals: &Originals, theme: &ThemeDef, a
     write_atomic(&theme_dir.join(format!("Foundation{}Theme.json", themed_name)), json.as_bytes())?;
     write_atomic(&theme_dir.join(format!("Foundation{}Theme.json", other_name)), other.as_bytes())?;
     Ok(warnings)
+}
+
+/// Result of preparing a themed launch.
+pub struct Applied {
+    /// Exe to launch instead of `RobloxStudioBeta.exe`, with `studio_dir` as working directory.
+    pub exe: PathBuf,
+    pub theme_name: String,
+    /// Whether the theme is dark: Studio must use its matching Dark/Light setting.
+    pub dark: bool,
+    /// Theme load problems and `[studio]` names this Studio build does not know.
+    pub warnings: Vec<String>,
+}
+
+/// Prepares `studio_dir` to launch with the configured Cutlery theme. An unknown theme id
+/// falls back to the default theme, like the Control Center does.
+pub fn apply(studio_dir: &Path, appearance: &AppearanceConfig) -> Result<Applied, String> {
+    let (themes, mut warnings) = theme::load_all(&theme::user_dir());
+    let selected = themes
+        .iter()
+        .find(|t| t.id == appearance.theme)
+        .or_else(|| {
+            warnings.push(format!("theme \"{}\" not found, using {}", appearance.theme, theme::DEFAULT_THEME));
+            themes.iter().find(|t| t.id == theme::DEFAULT_THEME)
+        })
+        .ok_or("no themes available")?;
+    let accent = selected.accent.unwrap_or_else(|| theme::accent_by_name(&appearance.accent_color));
+
+    let originals = ensure_patched(studio_dir)?;
+    warnings.extend(write_theme(studio_dir, &originals, selected, accent)?);
+    Ok(Applied {
+        exe: studio_dir.join(PATCHED_EXE),
+        theme_name: selected.name.clone(),
+        dark: selected.dark,
+        warnings,
+    })
 }
 
 #[cfg(test)]

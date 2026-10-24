@@ -305,6 +305,25 @@ pub(crate) fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
     // 3. Sync preferences from config to studio files
     config.sync_studio_files(studio_dir);
 
+    // 3b. Cutlery theme for Studio (experimental): a patched copy of the exe that loads its
+    // theme JSON from the version folder. Any failure falls back to the untouched exe.
+    let mut launch_exe = studio_exe.clone();
+    let mut themed = false;
+    if config.appearance.studio_theme {
+        match studio_theme::apply(studio_dir, &config.appearance) {
+            Ok(applied) => {
+                for warning in &applied.warnings {
+                    eprintln!("[Cutlery] [Studio Theme] Warning: {}", warning);
+                }
+                set_studio_color_scheme(&config.general.wine_binary, &prefix, applied.dark);
+                println!("[Cutlery] [Studio Theme] Applying \"{}\".", applied.theme_name);
+                launch_exe = applied.exe;
+                themed = true;
+            }
+            Err(e) => eprintln!("[Cutlery] [Studio Theme] Disabled for this launch: {}", e),
+        }
+    }
+
     // 4. Ensure registry x11 driver
     let reg_file = if data_dir.join("x11_docking_fix.reg").exists() {
         data_dir.join("x11_docking_fix.reg")
@@ -322,7 +341,11 @@ pub(crate) fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
 
     // 5. Setup Wine & Universal X11 Docking Hook Environment
     let mut cmd = Command::new(&config.general.wine_binary);
-    cmd.arg(&studio_exe);
+    cmd.arg(&launch_exe);
+    if themed {
+        // The patched exe resolves ./Platform/... against its working directory.
+        cmd.current_dir(studio_dir);
+    }
     for raw_arg in args {
         match sanitize_studio_arg(raw_arg) {
             Ok(clean_arg) => {
@@ -418,10 +441,37 @@ pub(crate) fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
         cmd.env("QT_SCALE_FACTOR", &config.graphics.dpi_scale);
     }
 
-    println!("[Cutlery] Launching Roblox Studio: {}", studio_exe.display());
+    println!("[Cutlery] Launching Roblox Studio: {}", launch_exe.display());
     println!("--------------------------------------------------------");
 
     cmd.status()
+}
+
+/// Studio's Dark/Light setting as stored in a Wine `user.reg`.
+fn studio_color_scheme(user_reg: &str) -> Option<String> {
+    let section = user_reg
+        .split("\n[")
+        .find(|s| s.starts_with("Software\\\\Roblox\\\\RobloxStudio\\\\Themes]"))?;
+    section
+        .lines()
+        .find_map(|line| line.strip_prefix("\"CurrentTheme\"=\""))
+        .map(|value| value.trim_end_matches('"').to_string())
+}
+
+/// Studio picks FoundationDarkTheme.json or FoundationLightTheme.json from its own Dark/Light
+/// setting; make it match the Cutlery theme. Reads user.reg first to skip the wine call.
+fn set_studio_color_scheme(wine_binary: &str, prefix: &Path, dark: bool) {
+    let wanted = if dark { "Dark" } else { "Light" };
+    let current = fs::read_to_string(prefix.join("user.reg")).ok().and_then(|reg| studio_color_scheme(&reg));
+    if current.as_deref() == Some(wanted) {
+        return;
+    }
+    let _ = Command::new(wine_binary)
+        .args(["reg", "add", "HKCU\\Software\\Roblox\\RobloxStudio\\Themes", "/v", "CurrentTheme", "/t", "REG_SZ", "/d", wanted, "/f"])
+        .env("WINEPREFIX", prefix)
+        .env("WINEDEBUG", "-all")
+        .stdout(std::process::Stdio::null())
+        .status();
 }
 
 fn cmd_mcp(args: &[String]) -> Result<ExitStatus, std::io::Error> {
@@ -770,6 +820,13 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_studio_color_scheme() {
+        let reg = "WINE REGISTRY Version 2\n\n[Software\\\\Roblox\\\\RobloxStudio] 1\n\"CurrentTheme\"=\"Wrong\"\n\n[Software\\\\Roblox\\\\RobloxStudio\\\\Themes] 1792086370\n#time=1dd5ccd103c17e8\n\"CurrentTheme\"=\"Dark\"\n\n[Software\\\\Other] 1\n";
+        assert_eq!(studio_color_scheme(reg).as_deref(), Some("Dark"));
+        assert_eq!(studio_color_scheme("WINE REGISTRY Version 2\n"), None);
+    }
 
     #[test]
     fn test_sanitize_valid_roblox_studio_uri() {

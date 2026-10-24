@@ -48,6 +48,8 @@ pub struct AppearanceConfig {
     /// Theme id: a built-in theme or a file stem in `~/.config/cutlery/themes/`.
     pub theme: String,
     pub accent_color: String,
+    /// Also apply the theme to Roblox Studio's Qt panels and Script Editor (experimental).
+    pub studio_theme: bool,
 }
 
 impl Default for AppearanceConfig {
@@ -55,6 +57,7 @@ impl Default for AppearanceConfig {
         Self {
             theme: crate::theme::DEFAULT_THEME.to_string(),
             accent_color: "blue".to_string(),
+            studio_theme: false,
         }
     }
 }
@@ -305,6 +308,7 @@ mod tests {
         let cfg = CutleryConfig::parse(toml_str).unwrap();
         assert_eq!(cfg.appearance.theme, "midnight");
         assert_eq!(cfg.appearance.accent_color, "violet");
+        assert!(!cfg.appearance.studio_theme);
         assert_eq!(cfg.graphics.accent_color, None);
     }
 
