@@ -70,6 +70,52 @@ pub(crate) fn get_root_dir() -> PathBuf {
     PathBuf::from(home).join(".local").join("share").join("cutlery")
 }
 
+/// `true` when the running executable lives under the directory named by `var`.
+/// Snap and AppImage export their variables to child processes too, so the variable alone is not enough.
+fn exe_under(var: &str) -> bool {
+    match (env::var_os(var), env::current_exe()) {
+        (Some(dir), Ok(exe)) => !dir.is_empty() && exe.starts_with(dir),
+        _ => false,
+    }
+}
+
+/// The read-only package Cutlery runs from ("AppImage" or "Snap"), if any.
+pub(crate) fn package_format() -> Option<&'static str> {
+    if exe_under("APPDIR") && env::var_os("APPIMAGE").is_some() {
+        Some("AppImage")
+    } else if exe_under("SNAP") {
+        Some("Snap")
+    } else {
+        None
+    }
+}
+
+/// Writable sandbox (Wine prefix, DXVK cache): `<root>/sandbox`, or
+/// `$XDG_DATA_HOME/cutlery/sandbox` when running from a read-only AppImage or Snap.
+pub(crate) fn sandbox_dir(root: &Path) -> PathBuf {
+    if package_format().is_none() {
+        return root.join("sandbox");
+    }
+    let data_home = env::var("XDG_DATA_HOME")
+        .ok()
+        .filter(|dir| !dir.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(env::var("HOME").unwrap_or_else(|_| ".".to_string())).join(".local").join("share"));
+    data_home.join("cutlery").join("sandbox")
+}
+
+/// Command that desktop entries should run: the AppImage file or the snap's launcher, not the
+/// mounted executable inside them.
+fn launcher_path(root: &Path) -> PathBuf {
+    match package_format() {
+        Some("AppImage") => env::var_os("APPIMAGE").map(PathBuf::from),
+        Some(_) => Some(PathBuf::from("/snap/bin/cutlery")),
+        None => None,
+    }
+    .or_else(|| env::current_exe().ok())
+    .unwrap_or_else(|| root.join("target").join("release").join("cutlery"))
+}
+
 pub(crate) fn find_studio_exe(prefix: &Path) -> Option<PathBuf> {
     let drive_c = prefix.join("drive_c");
     if !drive_c.exists() {
@@ -269,7 +315,7 @@ pub(crate) fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
     let config = CutleryConfig::load();
 
     let data_dir = root.join("data");
-    let sandbox = root.join("sandbox");
+    let sandbox = sandbox_dir(&root);
     let prefix = config.prefix_dir(&root);
     let custom_libs = root.join("custom-libs");
 
@@ -502,16 +548,20 @@ fn cmd_mcp(args: &[String]) -> Result<ExitStatus, std::io::Error> {
     for arg in args {
         cmd.arg(arg);
     }
+    if env::var_os("WINEPREFIX").is_none() {
+        cmd.env("WINEPREFIX", CutleryConfig::load().prefix_dir(&root));
+    }
 
     cmd.status()
 }
 
 pub(crate) fn cmd_install() -> Result<ExitStatus, std::io::Error> {
     let root = get_root_dir();
+    let sandbox = sandbox_dir(&root);
     let install_sh = if root.join("scripts").join("install_studio.sh").exists() {
         root.join("scripts").join("install_studio.sh")
     } else {
-        root.join("sandbox").join("install_studio.sh")
+        sandbox.join("install_studio.sh")
     };
 
     if !install_sh.exists() {
@@ -521,7 +571,12 @@ pub(crate) fn cmd_install() -> Result<ExitStatus, std::io::Error> {
         ));
     }
 
-    Command::new("bash").arg(&install_sh).status()
+    // The installer writes into the sandbox, which may live outside the (read-only) install root.
+    Command::new("bash")
+        .arg(&install_sh)
+        .env("CUTLERY_SANDBOX", &sandbox)
+        .env("CUTLERY_PREFIX", CutleryConfig::load().prefix_dir(&root))
+        .status()
 }
 
 /// `cutlery update`: offers a newer Cutlery release, then updates Roblox Studio if needed.
@@ -532,8 +587,8 @@ fn cmd_update() -> Result<(), String> {
 
     match update::fetch_latest_release() {
         Ok(release) if update::is_newer(&current, &release.version) => {
-            if update::is_source_checkout(&root) {
-                println!("[Cutlery] {} is available. This is a source checkout; update it with git pull.", release.version);
+            if let Some(reason) = update::self_update_blocker(&root) {
+                println!("[Cutlery] {} is available; {}.", release.version, reason);
             } else {
                 print!("[Cutlery] Update Cutlery {} -> {}? [y/N] ", current, release.version);
                 use std::io::Write;
@@ -617,9 +672,7 @@ fn cmd_register_desktop() -> Result<(), std::io::Error> {
         let _ = fs::copy(&src_svg, scalable_dir.join("cutlery.svg"));
     }
 
-    // Resolve cutlery binary path
-    let cutlery_bin = env::current_exe()
-        .unwrap_or_else(|_| root.join("target").join("release").join("cutlery"));
+    let cutlery_bin = launcher_path(&root);
     let escaped_bin = escape_desktop_exec(&cutlery_bin.to_string_lossy());
 
     // Exec opens the Settings UI by default from the app drawer/tray
@@ -673,8 +726,8 @@ fn cmd_register_desktop() -> Result<(), std::io::Error> {
 
 fn cmd_doctor() {
     let root = get_root_dir();
-    let sandbox = root.join("sandbox");
-    let prefix = sandbox.join("prefix");
+    let sandbox = sandbox_dir(&root);
+    let prefix = CutleryConfig::load().prefix_dir(&root);
     let custom_libs = root.join("custom-libs");
 
     println!("========================================================");

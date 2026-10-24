@@ -140,6 +140,18 @@ pub(crate) fn is_source_checkout(root: &Path) -> bool {
     root.join("Cargo.toml").exists()
 }
 
+/// Why the install at `root` cannot replace itself with a release tarball, if it cannot.
+pub(crate) fn self_update_blocker(root: &Path) -> Option<&'static str> {
+    if is_source_checkout(root) {
+        return Some("this is a source checkout, update it with git pull");
+    }
+    match crate::package_format() {
+        Some("AppImage") => Some("download the new AppImage from GitHub Releases"),
+        Some(_) => Some("install the new .snap from GitHub Releases"),
+        None => None,
+    }
+}
+
 fn cache_dir() -> Result<PathBuf, String> {
     if let Ok(dir) = std::env::var("XDG_CACHE_HOME") {
         if !dir.is_empty() {
@@ -178,8 +190,8 @@ fn copy_recursively(src: &Path, dst: &Path) -> std::io::Result<()> {
 /// Downloads, verifies (SHA-256) and installs `release` over the install at `root`.
 /// Returns the path of the new `cutlery` binary.
 pub(crate) fn apply_release(release: &Release, root: &Path) -> Result<PathBuf, String> {
-    if is_source_checkout(root) {
-        return Err("Cutlery is running from a source checkout; update it with git pull.".to_string());
+    if let Some(reason) = self_update_blocker(root) {
+        return Err(format!("Cutlery cannot update itself here: {}.", reason));
     }
 
     let work = cache_dir()?.join("updates");

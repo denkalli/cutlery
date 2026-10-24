@@ -1,0 +1,33 @@
+name: cutlery
+title: Cutlery
+version: '@VERSION@'
+summary: Roblox Studio launcher for Linux with a docking fix and an MCP bridge
+description: |
+  Cutlery launches Roblox Studio through Wine with a native fix for panel docking,
+  DXVK rendering, a pre-launch Control Center, Discord Rich Presence and a Universal
+  MCP bridge for AI agents. Wine, Python 3 and curl are used from the host system.
+license: GPL-3.0-or-later
+website: https://github.com/denkalli/cutlery
+issues: https://github.com/denkalli/cutlery/issues
+base: core24
+grade: stable
+# Wine, the user's Wine prefix and the Discord socket live on the host.
+confinement: classic
+
+platforms:
+  amd64:
+
+apps:
+  cutlery:
+    command: cutlery
+
+parts:
+  cutlery:
+    # Prebuilt release payload from scripts/package_release.sh.
+    plugin: dump
+    source: payload
+
+lint:
+  ignore:
+    - classic
+    - library

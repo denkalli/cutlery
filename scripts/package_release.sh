@@ -48,7 +48,7 @@ cp -r "${PROJECT_ROOT}/data" "${STAGE_DIR}/data"
 cp -r "${PROJECT_ROOT}/scripts" "${STAGE_DIR}/scripts"
 # Remove internal pycache or staging scripts from payload
 rm -rf "${STAGE_DIR}/scripts/__pycache__"
-rm -f "${STAGE_DIR}/scripts/package_release.sh"
+rm -f "${STAGE_DIR}/scripts/package_release.sh" "${STAGE_DIR}/scripts/package_formats.sh"
 
 cp -r "${PROJECT_ROOT}/mcp" "${STAGE_DIR}/mcp"
 rm -rf "${STAGE_DIR}/mcp/__pycache__"

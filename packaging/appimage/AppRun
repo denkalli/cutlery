@@ -1,0 +1,5 @@
+#!/bin/sh
+# AppImage entry point: the release payload sits at the AppDir root, so Cutlery finds
+# data/, scripts/ and custom-libs/ next to its binary. Wine, Python 3 and curl come from the host.
+HERE="$(dirname "$(readlink -f "$0")")"
+exec "$HERE/cutlery" "$@"

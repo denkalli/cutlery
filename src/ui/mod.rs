@@ -237,11 +237,8 @@ fn check_cutlery_update(app: &AppWindow, ctx: &Ctx) {
             end_job(&app);
             match latest {
                 Ok(release) if update::is_newer(&current, &release.version) => {
-                    if update::is_source_checkout(&root) {
-                        set_status(
-                            &app,
-                            format!("Cutlery {} is available; this is a source checkout, update it with git pull.", release.version),
-                        );
+                    if let Some(reason) = update::self_update_blocker(&root) {
+                        set_status(&app, format!("Cutlery {} is available; {}.", release.version, reason));
                         app.global::<Actions>().invoke_check_studio_updates();
                         return;
                     }

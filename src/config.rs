@@ -156,10 +156,11 @@ pub struct CutleryConfig {
 }
 
 impl CutleryConfig {
-    /// Wine prefix used for Studio: the configured path, or `<root>/sandbox/prefix`.
+    /// Wine prefix used for Studio: the configured path, or `prefix` in the sandbox
+    /// (`<root>/sandbox`, or the user's data directory for AppImage/Snap installs).
     pub fn prefix_dir(&self, root: &Path) -> PathBuf {
         if self.general.prefix_path.is_empty() {
-            root.join("sandbox").join("prefix")
+            crate::sandbox_dir(root).join("prefix")
         } else {
             PathBuf::from(&self.general.prefix_path)
         }

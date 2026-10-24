@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Cutlery
+Comment=Roblox Studio Launcher & Control Center for Linux
+Exec=cutlery %u
+Icon=cutlery
+Terminal=false
+Type=Application
+Categories=Development;IDE;
+MimeType=x-scheme-handler/roblox-studio;
+StartupWMClass=robloxstudiobeta.exe

@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+  # Manual runs build every package and upload them as workflow artifacts, without releasing.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,7 +13,8 @@ permissions:
 jobs:
   build-and-release:
     name: Build & Release Standalone Assets
-    runs-on: ubuntu-latest
+    # Pinned so `snapcraft --destructive-mode` builds on the same Ubuntu as the core24 base.
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -28,14 +31,36 @@ jobs:
 
       - name: Build and package release assets
         run: |
-          chmod +x scripts/package_release.sh
+          chmod +x scripts/package_release.sh scripts/package_formats.sh
           ./scripts/package_release.sh
 
+      - name: Build AppImage
+        run: ./scripts/package_formats.sh appimage
+
+      - name: Build Snap
+        run: |
+          sudo snap install snapcraft --classic
+          sudo ./scripts/package_formats.sh snap
+          sudo chown -R "$(id -u):$(id -g)" dist
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cutlery-packages
+          path: |
+            dist/*.tar.gz
+            dist/*.AppImage
+            dist/*.snap
+            dist/*.sha256
+
       - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/*.tar.gz
+            dist/*.AppImage
+            dist/*.snap
             dist/*.sha256
           generate_release_notes: true
         env:

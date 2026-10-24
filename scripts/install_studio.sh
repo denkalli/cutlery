@@ -3,8 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-SANDBOX_DIR="${PROJECT_ROOT}/sandbox"
-PREFIX_DIR="${SANDBOX_DIR}/prefix"
+# `cutlery install` points these outside the install root for read-only AppImage/Snap installs.
+SANDBOX_DIR="${CUTLERY_SANDBOX:-${PROJECT_ROOT}/sandbox}"
+PREFIX_DIR="${CUTLERY_PREFIX:-${SANDBOX_DIR}/prefix}"
 DATA_DIR="${PROJECT_ROOT}/data"
 
 export WINEPREFIX="${PREFIX_DIR}"
@@ -26,7 +27,6 @@ elif [ -f "${SANDBOX_DIR}/x11_docking_fix.reg" ]; then
 fi
 
 echo "=== [3/3] Downloading and Installing Roblox Studio Packages ==="
-chmod +x "${SCRIPT_DIR}/install_studio.py"
 python3 "${SCRIPT_DIR}/install_studio.py"
 
 echo ""

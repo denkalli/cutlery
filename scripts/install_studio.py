@@ -145,9 +145,9 @@ def download_and_extract_package(pkg_name, expected_checksum, expected_size, ver
 def main():
     script_dir = Path(__file__).resolve().parent
     project_root = script_dir.parent
-    sandbox_dir = project_root / "sandbox"
+    sandbox_dir = Path(os.environ.get("CUTLERY_SANDBOX") or project_root / "sandbox")
     data_dir = project_root / "data"
-    prefix_dir = sandbox_dir / "prefix"
+    prefix_dir = Path(os.environ.get("CUTLERY_PREFIX") or sandbox_dir / "prefix")
     
     # Locate Windows user directory inside WINEPREFIX
     users_dir = prefix_dir / "drive_c" / "users"

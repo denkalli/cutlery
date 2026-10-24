@@ -50,7 +50,7 @@ impl EnvReport {
             .join("system32")
             .join("d3d11.dll")
             .exists()
-            || root.join("sandbox").join("dxvk").join("x64").join("d3d11.dll").exists();
+            || crate::sandbox_dir(root).join("dxvk").join("x64").join("d3d11.dll").exists();
 
         let custom_libs = root.join("custom-libs");
         crate::ensure_docking_hooks(&custom_libs);
@@ -72,7 +72,7 @@ impl EnvReport {
             wine_version,
             ntsync: Path::new("/dev/ntsync").exists(),
             dxvk,
-            dxvk_version: read_trimmed(&root.join("sandbox").join("dxvk").join("VERSION")),
+            dxvk_version: read_trimmed(&crate::sandbox_dir(root).join("dxvk").join("VERSION")),
             hook,
             studio_exe,
             studio_version_id,

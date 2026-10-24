@@ -31,6 +31,16 @@ A lightweight, high-performance **Roblox Studio launcher for Linux** with a nati
 
 ### Installation & Run
 
+Every [GitHub Release](https://github.com/denkalli/cutlery/releases) ships three packages, each with a `.sha256` file:
+
+| Package | Install |
+| --- | --- |
+| `Cutlery-vX.Y.Z-x86_64.AppImage` | `chmod +x Cutlery-*.AppImage && ./Cutlery-*.AppImage` |
+| `cutlery_X.Y.Z_amd64.snap` | `sudo snap install --classic --dangerous cutlery_*.snap` |
+| `cutlery-vX.Y.Z-linux-x86_64.tar.gz` | Extract anywhere and run `./cutlery` |
+
+The AppImage and the Snap are read-only, so they keep the Wine prefix and DXVK in `~/.local/share/cutlery/sandbox/` and update by installing the newer package instead of using the Update button. The Snap uses classic confinement because Wine, your prefix and the Discord socket live on the host. All packages use the host's Wine, Python 3 and curl. To build from source instead:
+
 ```bash
 # 1. Clone & build
 git clone https://github.com/denkalli/cutlery.git
@@ -44,7 +54,7 @@ cargo build --release
 ./target/release/cutlery run
 ```
 
-*(Optional)* Copy `./target/release/cutlery` to `~/.local/bin/` and run `cutlery register-desktop` to integrate with your desktop app launcher and `roblox-studio://` browser links.
+*(Optional)* Copy `./target/release/cutlery` to `~/.local/bin/` (or use the AppImage/Snap) and run `cutlery register-desktop` to integrate with your desktop app launcher and `roblox-studio://` browser links.
 
 ---
 
