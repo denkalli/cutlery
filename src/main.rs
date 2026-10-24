@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 
 pub mod config;
+pub mod discord;
 pub mod studio_theme;
 pub mod theme;
 pub mod ui;
@@ -444,7 +445,20 @@ pub(crate) fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
     println!("[Cutlery] Launching Roblox Studio: {}", launch_exe.display());
     println!("--------------------------------------------------------");
 
-    cmd.status()
+    let mut child = cmd.spawn()?;
+
+    // Discord Rich Presence follows Studio's log: <user>/AppData/Local/Roblox/logs.
+    let presence = studio_dir
+        .parent()
+        .and_then(Path::parent)
+        .filter(|_| config.discord.enabled)
+        .map(|roblox_dir| discord::spawn(config.discord.clone(), roblox_dir.join("logs")));
+
+    let status = child.wait();
+    if let Some(presence) = presence {
+        presence.shutdown();
+    }
+    status
 }
 
 /// Studio's Dark/Light setting as stored in a Wine `user.reg`.
@@ -724,6 +738,12 @@ fn cmd_doctor() {
         println!("Universal MCP:    [OK] {}", bridge.display());
     } else {
         println!("Universal MCP:    [FAILED] mcp/bridge.py missing.");
+    }
+
+    // 7. Discord Rich Presence
+    match discord::find_socket() {
+        Some(socket) => println!("Discord RPC:      [OK] {}", socket.display()),
+        None => println!("Discord RPC:      [NOTICE] Discord is not running (Rich Presence starts when it is)"),
     }
 
     println!("========================================================");

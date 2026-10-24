@@ -135,6 +135,7 @@ fn refresh_environment(app: &AppWindow, target: ProbeTarget, message: Option<Str
             env.set_dxvk_version(report.dxvk_label().into());
             env.set_wine_version(report.wine_version.clone().unwrap_or_else(|| "Not found".into()).into());
             env.set_ntsync_available(report.ntsync);
+            env.set_discord_available(report.discord_socket.is_some());
             env.set_checks(slint::ModelRc::new(slint::VecModel::from(report.checks())));
             set_status(&app, message.unwrap_or_else(|| report.summary()));
             end_job(&app);

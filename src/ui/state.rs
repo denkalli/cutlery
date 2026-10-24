@@ -31,6 +31,12 @@ pub(super) fn push_config(app: &AppWindow, cfg: &CutleryConfig) {
 
     s.set_mcp_enabled(cfg.mcp.enabled);
     s.set_preinit_shield(cfg.mcp.preinit_shield);
+
+    s.set_discord_enabled(cfg.discord.enabled);
+    s.set_discord_privacy(cfg.discord.privacy_mode);
+    s.set_discord_elapsed(cfg.discord.show_elapsed);
+    s.set_discord_buttons(cfg.discord.show_buttons);
+    s.set_discord_app_id(cfg.discord.application_id.as_str().into());
 }
 
 /// Returns `base` with every field the UI edits replaced by its current UI value.
@@ -58,6 +64,12 @@ pub(super) fn pull_config(app: &AppWindow, base: &CutleryConfig) -> CutleryConfi
 
     cfg.mcp.enabled = s.get_mcp_enabled();
     cfg.mcp.preinit_shield = s.get_preinit_shield();
+
+    cfg.discord.enabled = s.get_discord_enabled();
+    cfg.discord.privacy_mode = s.get_discord_privacy();
+    cfg.discord.show_elapsed = s.get_discord_elapsed();
+    cfg.discord.show_buttons = s.get_discord_buttons();
+    cfg.discord.application_id = s.get_discord_app_id().trim().to_string();
     cfg
 }
 

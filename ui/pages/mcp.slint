@@ -2,6 +2,7 @@ import { Theme } from "../theme.slint";
 import { Settings, Env, Actions } from "../state.slint";
 import { Card, Page, SettingToggle, InfoField } from "../components/card.slint";
 import { ActionButton } from "../components/buttons.slint";
+import { LineEdit } from "std-widgets.slint";
 
 export component McpPage inherits Page {
     Card {
@@ -59,6 +60,39 @@ export component McpPage inherits Page {
             label: "Bridge status:";
             value: Env.mcp-test-status;
             value-color: Theme.ok;
+        }
+    }
+
+    Card {
+        title: "Discord Rich Presence";
+        description: "Shows the place you are editing or testing on your Discord profile while Studio runs.";
+        badge-text: Env.discord-available ? "Discord detected" : "Discord not running";
+        badge-tone: Env.discord-available ? Theme.ok : Theme.warn;
+
+        SettingToggle {
+            title: "Enable Rich Presence";
+            description: "Follows Studio's log and updates Discord over its local IPC socket.";
+            checked <=> Settings.discord-enabled;
+        }
+        SettingToggle {
+            title: "Privacy Mode";
+            description: "Shows only \"Editing a place\", without the experience name or Roblox link.";
+            checked <=> Settings.discord-privacy;
+        }
+        SettingToggle {
+            title: "Show Elapsed Time";
+            description: "Time since the place was opened, or since the playtest started.";
+            checked <=> Settings.discord-elapsed;
+        }
+        SettingToggle {
+            title: "Show Buttons";
+            description: "\"View on Roblox\" (when the place is shown) and \"Get Cutlery\".";
+            checked <=> Settings.discord-buttons;
+        }
+        LineEdit {
+            placeholder-text: "Custom Discord Application ID (optional)";
+            text <=> Settings.discord-app-id;
+            edited => { Settings.changed(); }
         }
     }
 }

@@ -56,7 +56,7 @@ fn with_v_prefix(version: &str) -> String {
     }
 }
 
-fn curl_get(url: &str) -> Result<String, String> {
+pub(crate) fn curl_get(url: &str) -> Result<String, String> {
     let out = Command::new("curl")
         .args(["-fsSL", "--max-time", "30", "-A", "Cutlery-Updater", url])
         .output()

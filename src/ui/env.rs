@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::DoctorCheck;
-use crate::studio_theme;
+use crate::{discord, studio_theme};
 use crate::update::STUDIO_VERSION_MARKER;
 use crate::{find_studio_exe, DXVK_VERSION};
 
@@ -29,6 +29,7 @@ pub(super) struct EnvReport {
     pub studio_version_id: Option<String>,
     /// `None` while the Studio theme is off (or Studio is not installed).
     pub studio_theme: Option<studio_theme::Status>,
+    pub discord_socket: Option<PathBuf>,
 }
 
 impl EnvReport {
@@ -76,6 +77,7 @@ impl EnvReport {
             studio_exe,
             studio_version_id,
             studio_theme,
+            discord_socket: discord::find_socket(),
         }
     }
 
@@ -140,6 +142,11 @@ impl EnvReport {
                 Some(studio_theme::Status::Unsupported(e)) => {
                     check("Studio Theme", format!("Unsupported Studio build: {}", e), LEVEL_FAIL)
                 }
+            },
+            if self.discord_socket.is_some() {
+                check("Discord Rich Presence", "OK (Discord running)".into(), LEVEL_OK)
+            } else {
+                check("Discord Rich Presence", "Discord not running".into(), LEVEL_NEUTRAL)
             },
         ]
     }

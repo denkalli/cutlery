@@ -60,6 +60,13 @@ export global Settings {
     in-out property <bool> mcp-enabled: true;
     in-out property <bool> preinit-shield: true;
 
+    in-out property <bool> discord-enabled: true;
+    in-out property <bool> discord-privacy;
+    in-out property <bool> discord-elapsed: true;
+    in-out property <bool> discord-buttons: true;
+    // Empty uses Cutlery's own Discord application.
+    in-out property <string> discord-app-id;
+
     // Set by Rust after comparing the edited values with the saved config.
     in property <bool> dirty;
 
@@ -88,6 +95,7 @@ export global Env {
     in property <bool> antigravity-linked;
     in property <string> antigravity-path;
     in property <string> mcp-test-status: "Not tested yet";
+    in property <bool> discord-available;
 }
 
 export global Status {

@@ -15,6 +15,7 @@ A lightweight, high-performance **Roblox Studio launcher for Linux** with a nati
 - **Themes**: Built-in dark, light, Midnight and OLED themes, plus your own TOML themes with live preview, optionally applied to Roblox Studio too (experimental).
 - **Rootless Docking Fix**: Native fix for Qt/Win32 panel docking without requiring a Virtual Desktop.
 - **Universal MCP Bridge**: Direct stdio JSON-RPC bridge connecting AI coding assistants to Roblox Studio.
+- **Discord Rich Presence**: Shows the experience you are editing or playtesting on your Discord profile, with an optional privacy mode.
 - **Vulkan & Low-Latency Sync**: High-performance DXVK Direct3D 11 rendering with NTSync (`/dev/ntsync`) and `winefsync` support.
 - **Automated Provisioning**: Built-in Studio installer, prefix management, and desktop integration.
 
@@ -119,6 +120,25 @@ MainBackground = "#21222c"
 Keyword = "#ff79c6"
 String = "#f1fa8c"
 ```
+
+---
+
+## Discord Rich Presence
+
+While Studio runs through `cutlery run` (or the Control Center's Launch button), Cutlery follows Studio's log and shows on Discord what you are doing: **Editing Baseplate · Building**, **Scripting**, **Testing Baseplate · Playtesting**, or **In Roblox Studio · Start page**, with the elapsed time and a "View on Roblox" button. The experience name comes from Roblox's public API.
+
+Configure it in **Universal MCP → Discord Rich Presence** or in `~/.config/cutlery/config.toml`:
+
+```toml
+[discord]
+enabled = true
+privacy_mode = false      # true: "Editing a place", no name and no Roblox link
+show_elapsed = true
+show_buttons = true
+application_id = ""       # optional: your own Discord application (see docs/discord-rpc.md)
+```
+
+The native Discord client, its Flatpak and Snap builds and Vesktop/arRPC are supported. If Discord is not running, Studio starts normally and the presence appears once Discord is opened. Details in [docs/discord-rpc.md](docs/discord-rpc.md).
 
 ---
 

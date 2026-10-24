@@ -116,6 +116,31 @@ impl Default for McpConfig {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct DiscordConfig {
+    /// Show what Studio is doing as Discord Rich Presence while `cutlery run` is active.
+    pub enabled: bool,
+    /// Hide the experience name and the "View on Roblox" button.
+    pub privacy_mode: bool,
+    pub show_elapsed: bool,
+    pub show_buttons: bool,
+    /// Custom Discord application ID; empty uses Cutlery's own application.
+    pub application_id: String,
+}
+
+impl Default for DiscordConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            privacy_mode: false,
+            show_elapsed: true,
+            show_buttons: true,
+            application_id: String::new(),
+        }
+    }
+}
+
 // Unknown sections (such as the old `[experimental]` table) are ignored on load
 // and dropped on the next save.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -127,6 +152,7 @@ pub struct CutleryConfig {
     pub kernel: KernelConfig,
     pub fastflags: FastFlagsConfig,
     pub mcp: McpConfig,
+    pub discord: DiscordConfig,
 }
 
 impl CutleryConfig {
@@ -317,6 +343,8 @@ mod tests {
         let mut cfg = CutleryConfig::default();
         cfg.fastflags.custom.insert("FFlagDebugDisplayFPS".into(), "True".into());
         cfg.appearance.theme = "oled".into();
+        cfg.discord.privacy_mode = true;
+        cfg.discord.application_id = "123456789012345678".into();
         let reloaded = CutleryConfig::parse(&toml::to_string_pretty(&cfg).unwrap()).unwrap();
         assert_eq!(cfg, reloaded);
     }
