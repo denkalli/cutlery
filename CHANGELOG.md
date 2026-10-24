@@ -2,6 +2,10 @@
 
 The Control Center home page shows this file from the installed release, so edits here appear without recompiling.
 
+## v1.6.0
+
+- **Discord Rich Presence**: while Studio runs, Discord shows the experience you are editing, whether you are building, scripting or playtesting, and for how long. Privacy mode hides the experience name. Configure it in Universal MCP → Discord Rich Presence; the Doctor page shows whether Discord is running.
+
 ## v1.5.0
 
 - **Themes**: the Control Center ships Cutlery Dark, Cutlery Light, Midnight and OLED Black, with a live preview in Graphics → Appearance. Add your own as TOML files in `~/.config/cutlery/themes/`; a theme can fix the accent color and replace the Home artwork.
