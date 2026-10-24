@@ -54,6 +54,20 @@ pub struct Rgba {
     pub a: u8,
 }
 
+/// Accent chips offered when a theme does not fix its accent; mirrors `Theme.accent-for` in ui/theme.slint.
+pub fn accent_by_name(name: &str) -> Rgba {
+    let hex = match name {
+        "cyan" => "#0ea5e9",
+        "indigo" => "#6366f1",
+        "emerald" => "#10b981",
+        "amber" => "#f59e0b",
+        "violet" => "#8b5cf6",
+        "rose" => "#f43f5e",
+        _ => "#3b82f6",
+    };
+    parse_color(hex).unwrap_or(Rgba { r: 59, g: 130, b: 246, a: 255 })
+}
+
 /// Parses `#rgb`, `#rrggbb` or `#rrggbbaa`.
 pub fn parse_color(value: &str) -> Result<Rgba, String> {
     let hex = value.trim().strip_prefix('#').ok_or_else(|| format!("'{}' must start with #", value))?;
@@ -84,6 +98,29 @@ struct ThemeFile {
     background: Option<String>,
     #[serde(default)]
     colors: BTreeMap<String, String>,
+    #[serde(default)]
+    studio: StudioFile,
+}
+
+/// Optional `[studio]` table: fine-tuning for the Roblox Studio theme (see src/studio_theme.rs).
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+struct StudioFile {
+    /// Original Studio color (`#RRGGBB`) to its replacement.
+    remap: BTreeMap<String, String>,
+    /// `StudioStyleGuideColor` name (`MainBackground`, or `MainBackground.Hover` for a modifier).
+    colors: BTreeMap<String, String>,
+    /// Script Editor preset keys (`Keyword`, `String`, `Background`…), applied to every preset.
+    syntax: BTreeMap<String, String>,
+}
+
+/// Parsed `[studio]` table; colors are validated, names are checked against Studio at render time.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct StudioOverrides {
+    /// Keyed by the original color as uppercase `RRGGBB` (no `#`).
+    pub remap: BTreeMap<String, Rgba>,
+    pub colors: BTreeMap<String, Rgba>,
+    pub syntax: BTreeMap<String, Rgba>,
 }
 
 fn default_base() -> String {
@@ -101,6 +138,7 @@ pub struct ThemeDef {
     /// Fixed accent; `None` lets the user pick one of the accent chips.
     pub accent: Option<Rgba>,
     pub background: Option<PathBuf>,
+    pub studio: StudioOverrides,
 }
 
 impl ThemeDef {
@@ -140,6 +178,23 @@ fn parse_theme(id: &str, source: &str, dir: Option<&Path>, base: &BTreeMap<Strin
         return Err(format!("missing color \"{}\"", missing));
     }
 
+    let parse_map = |section: &str, map: &BTreeMap<String, String>| -> Result<BTreeMap<String, Rgba>, String> {
+        map.iter()
+            .map(|(k, v)| parse_color(v).map(|c| (k.clone(), c)).map_err(|e| format!("studio.{}.{}: {}", section, k, e)))
+            .collect()
+    };
+    let studio = StudioOverrides {
+        remap: parse_map("remap", &file.studio.remap)?
+            .into_iter()
+            .map(|(from, to)| match parse_color(&from) {
+                Ok(c) if c.a == 255 => Ok((format!("{:02X}{:02X}{:02X}", c.r, c.g, c.b), to)),
+                _ => Err(format!("studio.remap: \"{}\" must be an opaque #rrggbb color", from)),
+            })
+            .collect::<Result<_, _>>()?,
+        colors: parse_map("colors", &file.studio.colors)?,
+        syntax: parse_map("syntax", &file.studio.syntax)?,
+    };
+
     let background = match (file.background, dir) {
         (Some(rel), Some(dir)) => {
             let path = dir.join(rel);
@@ -159,6 +214,7 @@ fn parse_theme(id: &str, source: &str, dir: Option<&Path>, base: &BTreeMap<Strin
         colors,
         accent,
         background,
+        studio,
     })
 }
 
@@ -243,6 +299,19 @@ mod tests {
         assert_eq!(theme.color("surface"), parse_color("#123456").unwrap());
         assert_eq!(theme.color("window-bg"), base_palette(false)["window-bg"]);
         assert_eq!(theme.accent, Some(Rgba { r: 255, g: 0, b: 0, a: 255 }));
+    }
+
+    #[test]
+    fn test_studio_section() {
+        let source = "name = \"T\"\n[studio.remap]\n\"#353741\" = \"#44475a\"\n[studio.colors]\n\"MainBackground.Hover\" = \"#123\"\n[studio.syntax]\nKeyword = \"#ff79c6\"\n";
+        let theme = parse_with_base("t", source, None).unwrap();
+        assert_eq!(theme.studio.remap["353741"], parse_color("#44475a").unwrap());
+        assert_eq!(theme.studio.colors["MainBackground.Hover"], parse_color("#112233").unwrap());
+        assert_eq!(theme.studio.syntax["Keyword"], parse_color("#ff79c6").unwrap());
+        assert!(parse_with_base("t", "name = \"T\"\n[studio.remap]\n\"#35374180\" = \"#000\"\n", None).is_err());
+        assert!(parse_with_base("t", "name = \"T\"\n[studio]\nfoo = 1\n", None).is_err());
+        assert_eq!(accent_by_name("rose"), parse_color("#f43f5e").unwrap());
+        assert_eq!(accent_by_name("nope"), accent_by_name("blue"));
     }
 
     #[test]
