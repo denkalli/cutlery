@@ -20,7 +20,7 @@ How Cutlery shows Roblox Studio activity on Discord. Code: `src/discord.rs`.
 | Line contains | Meaning |
 | --- | --- |
 | `open place (identifier = <placeId>)` | A cloud place was opened |
-| `Setting up for DataModel Edit` | Edit DataModel ready: a place or local file is open, or a playtest ended |
+| `Setting up for DataModel Edit` | Edit DataModel ready: a place or local file is open, or a playtest ended (logged right after `stopPlaySoloImpl … becomes StopPlaySolo`) |
 | `RobloxIDEDoc::activate` | A place tab got focus → Building |
 | `RobloxScriptDoc::activate` | A script tab got focus → Scripting |
 | `initiatePlaySolo` / `Setting up for DataModel Play…` | Playtest started |
