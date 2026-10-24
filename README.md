@@ -12,7 +12,7 @@ A lightweight, high-performance **Roblox Studio launcher for Linux** with a nati
 ## Features
 
 - **Control Center GUI**: Modern pre-launch dashboard for graphics, kernel sync, custom FastFlags, and AI bridge management.
-- **Themes**: Built-in dark, light, Midnight and OLED themes, plus your own TOML themes with live preview.
+- **Themes**: Built-in dark, light, Midnight and OLED themes, plus your own TOML themes with live preview, optionally applied to Roblox Studio too (experimental).
 - **Rootless Docking Fix**: Native fix for Qt/Win32 panel docking without requiring a Virtual Desktop.
 - **Universal MCP Bridge**: Direct stdio JSON-RPC bridge connecting AI coding assistants to Roblox Studio.
 - **Vulkan & Low-Latency Sync**: High-performance DXVK Direct3D 11 rendering with NTSync (`/dev/ntsync`) and `winefsync` support.
@@ -98,6 +98,27 @@ accent = "#ff79c6"       # optional; without it the accent chips stay selectable
 ```
 
 The available colors are the keys in [`data/themes/cutlery-dark.toml`](data/themes/cutlery-dark.toml). A user theme named like a built-in one (for example `oled.toml`) replaces it.
+
+### Roblox Studio (experimental)
+
+Turn on **Apply theme to Roblox Studio** in **Graphics → Appearance** and launch Studio from Cutlery. The selected theme then recolors Studio's panels, menus, tabs, Properties, Output and the Script Editor. The ribbon, Explorer and Toolbox are built-in Luau plugins and keep Studio's own colors.
+
+How it works: Studio reads its theme from JSON files compiled into `RobloxStudioBeta.exe`. Cutlery writes a copy, `RobloxStudioCutlery.exe`, that differs in two bytes and loads those files from the version folder instead, then writes them remapped to your theme. The original exe is never modified, Studio's Dark/Light setting is switched to match the theme, and everything is redone automatically after a Studio update. If anything fails, Studio starts normally with its own theme. The **Doctor** page shows whether the installed Studio build can be themed. Details: [`docs/studio-themes.md`](docs/studio-themes.md).
+
+Themes can fine-tune Studio with an optional `[studio]` table:
+
+```toml
+[studio.remap]            # original Studio color -> new color
+"#353741" = "#44475a"
+
+[studio.colors]           # StudioStyleGuideColor, optionally with a modifier
+MainBackground = "#21222c"
+"Item.Hover" = "#44475a"
+
+[studio.syntax]           # Script Editor colors, applied to every preset
+Keyword = "#ff79c6"
+String = "#f1fa8c"
+```
 
 ---
 

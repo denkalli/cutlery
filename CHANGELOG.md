@@ -2,6 +2,12 @@
 
 The Control Center home page shows this file from the installed release, so edits here appear without recompiling.
 
+## v1.5.0
+
+- **Themes**: the Control Center ships Cutlery Dark, Cutlery Light, Midnight and OLED Black, with a live preview in Graphics → Appearance. Add your own as TOML files in `~/.config/cutlery/themes/`; a theme can fix the accent color and replace the Home artwork.
+- **Themes in Roblox Studio (experimental)**: the selected theme can also recolor Studio's panels, menus, tabs, Properties, Output and Script Editor. The ribbon, Explorer and Toolbox keep Studio's colors. The original Studio executable is never modified, and the Doctor page shows whether your Studio build is supported.
+- **Window resizing fixed**: dragging the window edges no longer leaves the mouse stuck resizing.
+
 ## v1.4.0
 
 - **Working Update button**: checks GitHub Releases for a newer Cutlery, asks before installing (verified with SHA-256) and restarts into the new version. Roblox Studio is then updated only when Roblox has published a newer build.
