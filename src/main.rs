@@ -548,10 +548,22 @@ fn cmd_mcp(args: &[String]) -> Result<ExitStatus, std::io::Error> {
     for arg in args {
         cmd.arg(arg);
     }
+    let config = CutleryConfig::load();
     if env::var_os("WINEPREFIX").is_none() {
-        cmd.env("WINEPREFIX", CutleryConfig::load().prefix_dir(&root));
+        cmd.env("WINEPREFIX", config.prefix_dir(&root));
+    }
+    if env::var_os("CUTLERY_MCP_EXIT_WITH_STUDIO").is_none() {
+        cmd.env("CUTLERY_MCP_EXIT_WITH_STUDIO", if config.mcp.exit_with_studio { "1" } else { "0" });
     }
 
+    // Become the bridge instead of waiting on it: signals from the MCP client reach Python
+    // directly and no idle `cutlery mcp` process is left behind it.
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        Err(cmd.exec())
+    }
+    #[cfg(not(unix))]
     cmd.status()
 }
 

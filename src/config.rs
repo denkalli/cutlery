@@ -102,9 +102,12 @@ impl Default for FastFlagsConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct McpConfig {
     pub enabled: bool,
     pub preinit_shield: bool,
+    /// Stop the bridge (and its StudioMCP.exe) once Roblox Studio closes.
+    pub exit_with_studio: bool,
 }
 
 impl Default for McpConfig {
@@ -112,6 +115,7 @@ impl Default for McpConfig {
         Self {
             enabled: true,
             preinit_shield: true,
+            exit_with_studio: true,
         }
     }
 }

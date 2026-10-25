@@ -31,6 +31,7 @@ pub(super) fn push_config(app: &AppWindow, cfg: &CutleryConfig) {
 
     s.set_mcp_enabled(cfg.mcp.enabled);
     s.set_preinit_shield(cfg.mcp.preinit_shield);
+    s.set_mcp_exit_with_studio(cfg.mcp.exit_with_studio);
 
     s.set_discord_enabled(cfg.discord.enabled);
     s.set_discord_privacy(cfg.discord.privacy_mode);
@@ -64,6 +65,7 @@ pub(super) fn pull_config(app: &AppWindow, base: &CutleryConfig) -> CutleryConfi
 
     cfg.mcp.enabled = s.get_mcp_enabled();
     cfg.mcp.preinit_shield = s.get_preinit_shield();
+    cfg.mcp.exit_with_studio = s.get_mcp_exit_with_studio();
 
     cfg.discord.enabled = s.get_discord_enabled();
     cfg.discord.privacy_mode = s.get_discord_privacy();

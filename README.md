@@ -62,6 +62,8 @@ cargo build --release
 
 Cutlery provides a unified MCP server endpoint via `cutlery mcp`.
 
+Once Roblox Studio closes, the bridge stops its `StudioMCP.exe` and exits, so idle AI clients don't keep Wine running in the background. Your client reconnects the next time it starts the server. To keep the bridge running instead, turn off **Universal MCP → Close With Studio**, set `exit_with_studio = false` under `[mcp]` in `~/.config/cutlery/config.toml`, or run `cutlery mcp --keep-alive`.
+
 ### Claude Desktop (`~/.config/Claude/claude_desktop_config.json`)
 ```json
 {

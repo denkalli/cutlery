@@ -42,6 +42,11 @@ export component McpPage inherits Page {
             description: "Answers non-standard agent probes locally (-32601) to protect the StudioMCP.exe handshake.";
             checked <=> Settings.preinit-shield;
         }
+        SettingToggle {
+            title: "Close With Studio";
+            description: "Stops the bridge and StudioMCP.exe when Roblox Studio closes, so nothing keeps Wine running.";
+            checked <=> Settings.mcp-exit-with-studio;
+        }
     }
 
     Card {
