@@ -1,4 +1,4 @@
-//! AI client integrations: Antigravity plugin link, Claude Desktop config, MCP bridge probe.
+//! AI client integrations: Antigravity plugin link, Claude Desktop and Codex config, MCP bridge probe.
 
 use std::path::{Path, PathBuf};
 
@@ -106,6 +106,52 @@ pub(super) fn configure_claude_desktop() -> Result<PathBuf, String> {
 
     let formatted = serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?;
     std::fs::write(&cfg_path, formatted)
+        .map_err(|e| format!("Could not write {}: {}", cfg_path.display(), e))?;
+    Ok(cfg_path)
+}
+
+/// Adds (or updates) the `cutlery` server in Codex's config, keeping other entries.
+pub(super) fn configure_codex() -> Result<PathBuf, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME is not set.")?;
+    let codex_dir = PathBuf::from(home).join(".codex");
+    std::fs::create_dir_all(&codex_dir).map_err(|e| e.to_string())?;
+    let cfg_path = codex_dir.join("config.toml");
+
+    let content = match std::fs::read_to_string(&cfg_path) {
+        Ok(content) => content,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(error) => return Err(format!("Could not read {}: {}", cfg_path.display(), error)),
+    };
+    let mut cfg: toml_edit::DocumentMut = if content.trim().is_empty() {
+        toml_edit::DocumentMut::new()
+    } else {
+        content
+            .parse()
+            .map_err(|e| format!("Could not parse {}: {}", cfg_path.display(), e))?
+    };
+
+    let servers = cfg
+        .as_table_mut()
+        .entry("mcp_servers")
+        .or_insert(toml_edit::Item::Table(toml_edit::Table::new()));
+    let servers = servers
+        .as_table_mut()
+        .ok_or_else(|| format!("mcp_servers in {} must be a TOML table.", cfg_path.display()))?;
+    let server = servers
+        .entry("cutlery")
+        .or_insert(toml_edit::Item::Table(toml_edit::Table::new()));
+    let server = server
+        .as_table_mut()
+        .ok_or_else(|| format!("mcp_servers.cutlery in {} must be a TOML table.", cfg_path.display()))?;
+    server.insert(
+        "command",
+        toml_edit::value(canonical_binary_path().to_string_lossy().into_owned()),
+    );
+    let mut args = toml_edit::Array::new();
+    args.push("mcp");
+    server.insert("args", toml_edit::value(args));
+
+    std::fs::write(&cfg_path, cfg.to_string())
         .map_err(|e| format!("Could not write {}: {}", cfg_path.display(), e))?;
     Ok(cfg_path)
 }

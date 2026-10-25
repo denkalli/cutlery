@@ -542,6 +542,23 @@ fn register_action_callbacks(app: &AppWindow, ctx: &Rc<Ctx>) {
         }
     });
 
+    actions.on_configure_codex({
+        let weak = app.as_weak();
+        move || {
+            let Some(app) = weak.upgrade() else { return };
+            match integrations::configure_codex() {
+                Ok(path) => set_status(
+                    &app,
+                    format!(
+                        "Codex configured ({}). Restart Codex to load the MCP server.",
+                        path.display()
+                    ),
+                ),
+                Err(e) => set_status(&app, e),
+            }
+        }
+    });
+
     actions.on_test_mcp({
         let weak = app.as_weak();
         let ctx = ctx.clone();

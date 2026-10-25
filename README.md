@@ -76,16 +76,11 @@ Once Roblox Studio closes, the bridge stops its `StudioMCP.exe` and exits, so id
 }
 ```
 
-### Cursor (`~/.cursor/mcp.json`)
-```json
-{
-  "mcpServers": {
-    "roblox-studio": {
-      "command": "cutlery",
-      "args": ["mcp"]
-    }
-  }
-}
+### Codex (`~/.codex/config.toml`)
+```toml
+[mcp_servers.cutlery]
+command = "cutlery"
+args = ["mcp"]
 ```
 
 ### Antigravity

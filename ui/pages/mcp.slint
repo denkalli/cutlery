@@ -60,6 +60,10 @@ export component McpPage inherits Page {
                 text: "Configure Claude Desktop";
                 clicked => { Actions.configure-claude(); }
             }
+            ActionButton {
+                text: "Configure Codex";
+                clicked => { Actions.configure-codex(); }
+            }
         }
         InfoField {
             label: "Bridge status:";

@@ -1,6 +1,6 @@
 [package]
 name = "cutlery"
-version = "1.6.3"
+version = "1.6.4"
 edition = "2021"
 description = "A lightweight Roblox Studio launcher for Linux with native rootless docking fixes and Universal AI MCP Bridge"
 authors = ["Cutlery Contributors", "Gemini <gemini@google.com>", "Claude <noreply@anthropic.com>"]
@@ -16,6 +16,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 flate2 = "1"
 toml = "0.8"
+toml_edit = "0.22"
 
 [build-dependencies]
 slint-build = "1.18"
