@@ -2,6 +2,10 @@
 
 The Control Center home page shows this file from the installed release, so edits here appear without recompiling.
 
+## v1.6.3
+
+- **MCP bridge closes with Studio**: once Roblox Studio closes, the Universal MCP bridge stops `StudioMCP.exe` and exits, so idle AI clients no longer keep Wine running in the background. Turn it off in Universal MCP → Close With Studio, or run `cutlery mcp --keep-alive`.
+
 ## v1.6.1
 
 - **AppImage and Snap packages**: each release now also ships `Cutlery-vX.Y.Z-x86_64.AppImage` and `cutlery_X.Y.Z_amd64.snap` (classic confinement), next to the tarball.
