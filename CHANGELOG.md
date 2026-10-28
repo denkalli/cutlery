@@ -2,6 +2,10 @@
 
 The Control Center home page shows this file from the installed release, so edits here appear without recompiling.
 
+## v1.6.5
+
+- **Updated Cutlery icon**: use the new cutlery artwork for the application, Linux launcher icon sizes and Antigravity Roblox plugin.
+
 ## v1.6.4
 
 - **Codex MCP setup**: configure Codex from Universal MCP; Cutlery adds its local stdio server to `~/.codex/config.toml` while preserving existing settings and comments.
