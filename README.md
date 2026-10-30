@@ -54,7 +54,7 @@ cargo build --release
 ./target/release/cutlery run
 ```
 
-*(Optional)* Copy `./target/release/cutlery` to `~/.local/bin/` (or use the AppImage/Snap) and run `cutlery register-desktop` to integrate with your desktop app launcher and `roblox-studio://` browser links.
+*(Optional)* Copy `./target/release/cutlery` to `~/.local/bin/` (or use the AppImage/Snap) and run `cutlery register-desktop` to integrate with your desktop app launcher, `roblox-studio:` launch links and `roblox-studio-auth:` browser login callbacks. Run it again after upgrading an existing installation to repair older protocol registrations.
 
 ---
 
@@ -158,7 +158,7 @@ The native Discord client, its Flatpak and Snap builds and Vesktop/arRPC are sup
 | `cutlery mcp [args...]` | Runs the Universal MCP Bridge over `stdio`. |
 | `cutlery install` | Installs or updates Roblox Studio in the Wine prefix. |
 | `cutlery update` | Updates Cutlery from GitHub Releases (with confirmation), then Roblox Studio if a newer build exists. |
-| `cutlery register-desktop` | Registers desktop launcher and `roblox-studio://` URI handler. |
+| `cutlery register-desktop` | Registers desktop launcher and Studio launch/login URI handlers. |
 | `cutlery doctor` | Diagnostic health check (Wine, Vulkan, NTSync, Prefix). |
 
 ---

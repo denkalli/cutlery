@@ -2,6 +2,12 @@
 
 The Control Center home page shows this file from the installed release, so edits here appear without recompiling.
 
+## v1.6.5
+
+- **Browser login fixed**: preserve the browser callback URL in the desktop launcher and forward `roblox-studio-auth:` links directly to Roblox Studio instead of opening the Control Center or rejecting the command.
+- **Protocol registration repaired**: register both Studio launch and authentication protocols, replacing stale login handlers. AppImage and Snap desktop entries advertise both protocols too. Run `cutlery register-desktop` after upgrading an existing installation.
+- **Private authentication errors**: rejected launch arguments are no longer printed, keeping login codes out of error output.
+
 ## v1.6.4
 
 - **Codex MCP setup**: configure Codex from Universal MCP; Cutlery adds its local stdio server to `~/.codex/config.toml` while preserving existing settings and comments.

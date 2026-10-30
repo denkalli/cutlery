@@ -153,6 +153,10 @@ pub(crate) fn find_studio_exe(prefix: &Path) -> Option<PathBuf> {
 pub(crate) const DXVK_VERSION: &str = "3.1.1";
 const DXVK_SHA256: &str = "40565b4a724aadc4433fa4e010b4b23916d9b1f1baeee64e17186db94f54e608";
 
+fn is_studio_uri(arg: &str) -> bool {
+    arg.starts_with("roblox-studio:") || arg.starts_with("roblox-studio-auth:")
+}
+
 pub(crate) fn sanitize_studio_arg(arg: &str) -> Result<String, String> {
     // 1. Check for null bytes, carriage returns, newlines, and forbidden control characters
     if arg.chars().any(|c| c.is_control() || c == '\0') {
@@ -169,9 +173,9 @@ pub(crate) fn sanitize_studio_arg(arg: &str) -> Result<String, String> {
         return Err("Argument is empty".to_string());
     }
 
-    // 3. Protocol URI handler (roblox-studio: or roblox-studio://)
-    if trimmed.starts_with("roblox-studio:") {
-        // Safe character set for roblox-studio URI:
+    // 3. Studio launch and browser authentication callbacks.
+    if is_studio_uri(trimmed) {
+        // Safe character set for Studio URIs:
         // alphanumeric, +, :, -, _, ., =, &, ?, /, %, ,, ~, @
         let is_valid_uri = trimmed.chars().all(|c| {
             c.is_ascii_alphanumeric()
@@ -191,7 +195,7 @@ pub(crate) fn sanitize_studio_arg(arg: &str) -> Result<String, String> {
         });
 
         if !is_valid_uri {
-            return Err("roblox-studio URI contains invalid or unsafe characters".to_string());
+            return Err("Studio URI contains invalid or unsafe characters".to_string());
         }
 
         return Ok(trimmed.to_string());
@@ -400,7 +404,6 @@ pub(crate) fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
             }
             Err(e) => {
                 eprintln!("[Cutlery] Security error: {}", e);
-                eprintln!("[Cutlery] Rejected argument: '{}'", raw_arg);
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
                     format!("Security rejection: {}", e),
@@ -684,36 +687,19 @@ fn cmd_register_desktop() -> Result<(), std::io::Error> {
         let _ = fs::copy(&src_svg, scalable_dir.join("cutlery.svg"));
     }
 
-    let cutlery_bin = launcher_path(&root);
-    let escaped_bin = escape_desktop_exec(&cutlery_bin.to_string_lossy());
-
-    // Exec opens the Settings UI by default from the app drawer/tray
-    let desktop_content = format!(
-        "[Desktop Entry]\n\
-         Name=Cutlery\n\
-         Comment=Roblox Studio Launcher & Control Center for Linux\n\
-         Exec=\"{}\"\n\
-         Icon=cutlery\n\
-         Terminal=false\n\
-         Type=Application\n\
-         Categories=Development;IDE;Game;\n\
-         MimeType=x-scheme-handler/roblox-studio;\n\
-         StartupWMClass=robloxstudiobeta.exe\n\
-         Actions=LaunchStudio;\n\n\
-         [Desktop Action LaunchStudio]\n\
-         Name=Launch Roblox Studio Directly\n\
-         Exec=\"{}\" run %u\n",
-        escaped_bin,
-        escaped_bin
-    );
-
     let desktop_file = apps_dir.join("cutlery.desktop");
-    fs::write(&desktop_file, desktop_content)?;
+    fs::write(&desktop_file, desktop_entry(&launcher_path(&root)))?;
 
-    // Register MIME handler
-    let _ = Command::new("xdg-mime")
-        .args(["default", "cutlery.desktop", "x-scheme-handler/roblox-studio"])
-        .status();
+    // Replace stale handlers for both Studio launch links and browser login callbacks.
+    for scheme in ["roblox-studio", "roblox-studio-auth"] {
+        let mime = format!("x-scheme-handler/{}", scheme);
+        let status = Command::new("xdg-mime")
+            .args(["default", "cutlery.desktop", &mime])
+            .status()?;
+        if !status.success() {
+            return Err(std::io::Error::other(format!("Failed to register {}", mime)));
+        }
+    }
 
     let _ = Command::new("update-desktop-database")
         .arg(&apps_dir)
@@ -732,8 +718,31 @@ fn cmd_register_desktop() -> Result<(), std::io::Error> {
     println!("          Comment:      Roblox Studio Launcher & Control Center for Linux");
     println!("          App Drawer:   Clicking Cutlery will now open the Control Center UI.");
     println!("          MIME Handler: x-scheme-handler/roblox-studio -> Cutlery");
+    println!("          MIME Handler: x-scheme-handler/roblox-studio-auth -> Cutlery");
 
     Ok(())
+}
+
+fn desktop_entry(launcher: &Path) -> String {
+    let escaped_bin = escape_desktop_exec(&launcher.to_string_lossy());
+    // With no URL the app drawer opens the UI; browser links must keep their URL.
+    format!(
+        "[Desktop Entry]\n\
+         Name=Cutlery\n\
+         Comment=Roblox Studio Launcher & Control Center for Linux\n\
+         Exec=\"{}\" %u\n\
+         Icon=cutlery\n\
+         Terminal=false\n\
+         Type=Application\n\
+         Categories=Development;IDE;Game;\n\
+         MimeType=x-scheme-handler/roblox-studio;x-scheme-handler/roblox-studio-auth;\n\
+         StartupWMClass=robloxstudiobeta.exe\n\
+         Actions=LaunchStudio;\n\n\
+         [Desktop Action LaunchStudio]\n\
+         Name=Launch Roblox Studio Directly\n\
+         Exec=\"{}\" run %u\n",
+        escaped_bin, escaped_bin
+    )
 }
 
 fn cmd_doctor() {
@@ -823,7 +832,7 @@ fn print_help() {
     println!("  mcp [args...]          Run the Universal MCP Bridge (for Claude, Cursor, Antigravity, Codex)");
     println!("  install                Install or update Roblox Studio in the Wine prefix");
     println!("  update                 Update Cutlery (GitHub Releases) and Roblox Studio");
-    println!("  register-desktop       Register desktop launcher and roblox-studio:// browser URI handler");
+    println!("  register-desktop       Register desktop launcher and Studio launch/login URI handlers");
     println!("  doctor                 Verify system, Wine, driver, and prefix health");
     println!("  version                Show version information");
     println!("  help                   Show this help message");
@@ -886,8 +895,8 @@ fn main() {
             println!("Cutlery v{}", env!("CARGO_PKG_VERSION"));
         }
         unknown => {
-            // If unknown argument starts with roblox-studio: (URI launch from browser) or a file path
-            if unknown.starts_with("roblox-studio:") || unknown.ends_with(".rbxl") || unknown.ends_with(".rbxlx") {
+            // Browser launch/login callbacks and place files bypass the Control Center.
+            if is_studio_uri(unknown) || unknown.ends_with(".rbxl") || unknown.ends_with(".rbxlx") {
                 let pass_args = &args[1..];
                 if let Err(e) = cmd_run(pass_args) {
                     eprintln!("[Cutlery] Failed to launch Studio with URI: {}", e);
@@ -919,6 +928,49 @@ mod tests {
         let res = sanitize_studio_arg(uri);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), uri);
+    }
+
+    #[test]
+    fn test_browser_auth_callback() {
+        for uri in [
+            "roblox-studio-auth:/?code=FAKE-code_123&state=FAKE%2Bstate%3D",
+            "roblox-studio-auth://?code=FAKE-code_123&state=FAKE%2Bstate%3D",
+        ] {
+            assert!(is_studio_uri(uri));
+            assert_eq!(sanitize_studio_arg(uri).unwrap(), uri);
+        }
+        for invalid in [
+            "roblox-studio-auth:/?code=FAKE\"&state=test",
+            "roblox-studio-auth:/?code=FAKE\n&state=test",
+            "roblox-studio-auth:/?code=FAKE;command",
+            "roblox-studio-auth:/?code=FAKE|command",
+            "roblox-studio-auth:/?code=FAKE`command`",
+            "roblox-studio-auth:/?code=FAKE$(command)",
+            "roblox-studio-auth:/?code=FAKE value",
+        ] {
+            assert!(sanitize_studio_arg(invalid).is_err());
+        }
+        assert!(!is_studio_uri("https://www.roblox.com"));
+        assert!(!is_studio_uri("roblox-studio-auth-evil:/?code=FAKE"));
+    }
+
+    #[test]
+    fn test_desktop_entries_forward_browser_callbacks() {
+        let generated = desktop_entry(Path::new("/opt/Cutlery App/cutlery"));
+        let entries = [
+            generated.as_str(),
+            include_str!("../packaging/appimage/cutlery.desktop"),
+            include_str!("../packaging/snap/gui/cutlery.desktop"),
+        ];
+        for entry in entries {
+            let main = entry.split("\n[Desktop Action").next().unwrap();
+            let exec = main.lines().find(|line| line.starts_with("Exec=")).unwrap();
+            assert!(exec.ends_with(" %u"), "Browser URL missing from {}", exec);
+            let mime = main.lines().find(|line| line.starts_with("MimeType=")).unwrap();
+            assert!(mime.contains("x-scheme-handler/roblox-studio;"));
+            assert!(mime.contains("x-scheme-handler/roblox-studio-auth;"));
+        }
+        assert!(generated.contains("Exec=\"/opt/Cutlery App/cutlery\" %u\n"));
     }
 
     #[test]
