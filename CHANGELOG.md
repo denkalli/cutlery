@@ -2,6 +2,10 @@
 
 The Control Center home page shows this file from the installed release, so edits here appear without recompiling.
 
+## v1.6.6
+
+- **Keep Studio alive during browser login**: leave unchanged DXVK DLLs untouched when handling a login callback. Updated DLLs are installed atomically, preserving the files already mapped by a running Studio instead of truncating them and causing a graphics crash.
+
 ## v1.6.5
 
 - **Browser login fixed**: preserve the browser callback URL in the desktop launcher and forward `roblox-studio-auth:` links directly to Roblox Studio instead of opening the Control Center or rejecting the command.

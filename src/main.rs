@@ -314,6 +314,35 @@ fn ensure_dxvk(sandbox: &Path, data_dir: &Path) -> PathBuf {
     sandbox_dxvk
 }
 
+/// Do not truncate DLLs mapped by an already running Studio (for example, during browser login).
+/// Unchanged DLLs stay untouched; updates replace the directory entry, preserving old mappings.
+fn sync_runtime_dll(source: &Path, destination: &Path) -> Result<(), std::io::Error> {
+    use std::io::Write;
+
+    let contents = fs::read(source)?;
+    match fs::read(destination) {
+        Ok(current) if current == contents => return Ok(()),
+        Ok(_) => {},
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+        Err(e) => return Err(e),
+    }
+
+    // A separate file in the same directory makes rename atomic. Each launcher has its own
+    // temporary name; create_new also prevents overwriting a leftover file or a symlink.
+    let temporary = destination.with_extension(format!("dll.{}.tmp", std::process::id()));
+    let mut file = fs::OpenOptions::new().write(true).create_new(true).open(&temporary)?;
+    let result = (|| {
+        file.write_all(&contents)?;
+        file.set_permissions(fs::metadata(source)?.permissions())?;
+        drop(file);
+        fs::rename(&temporary, destination)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result
+}
+
 pub(crate) fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
     let root = get_root_dir();
     let config = CutleryConfig::load();
@@ -349,8 +378,9 @@ pub(crate) fn cmd_run(args: &[String]) -> Result<ExitStatus, std::io::Error> {
     // 2. Sync DXVK dlls and config (auto-downloads DXVK_VERSION if missing on fresh clones)
     let dxvk_x64 = ensure_dxvk(&sandbox, &data_dir);
     if dxvk_x64.join("d3d11.dll").exists() {
-        let _ = fs::copy(dxvk_x64.join("d3d11.dll"), studio_dir.join("d3d11.dll"));
-        let _ = fs::copy(dxvk_x64.join("dxgi.dll"), studio_dir.join("dxgi.dll"));
+        for dll in ["d3d11.dll", "dxgi.dll"] {
+            sync_runtime_dll(&dxvk_x64.join(dll), &studio_dir.join(dll))?;
+        }
     }
 
     // 3. Sync preferences from config to studio files
@@ -914,6 +944,44 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_dxvk_sync_preserves_loaded_library() {
+        use std::io::Read;
+        use std::os::unix::fs::MetadataExt;
+
+        let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let dir = env::temp_dir().join(format!("cutlery-dxvk-{}-{}", std::process::id(), unique));
+        fs::create_dir(&dir).unwrap();
+        let source = dir.join("source.dll");
+        let destination = dir.join("d3d11.dll");
+        fs::write(&source, b"original loaded DLL").unwrap();
+        sync_runtime_dll(&source, &destination).unwrap();
+        let mut loaded = fs::File::open(&destination).unwrap();
+        let original = loaded.metadata().unwrap();
+
+        // A login callback must leave an identical, already loaded DLL completely untouched.
+        sync_runtime_dll(&source, &destination).unwrap();
+        let unchanged = fs::metadata(&destination).unwrap();
+        assert_eq!(original.ino(), unchanged.ino());
+        assert_eq!(original.modified().unwrap(), unchanged.modified().unwrap());
+
+        // Even an update must preserve the backing file of a running process.
+        fs::write(&source, b"updated DLL for the next process").unwrap();
+        sync_runtime_dll(&source, &destination).unwrap();
+        assert_ne!(original.ino(), fs::metadata(&destination).unwrap().ino());
+        assert_eq!(fs::read(&destination).unwrap(), b"updated DLL for the next process");
+        let mut still_loaded = Vec::new();
+        loaded.read_to_end(&mut still_loaded).unwrap();
+        assert_eq!(still_loaded, b"original loaded DLL");
+
+        // A failed copy must not damage the existing DLL or leave temporary files behind.
+        fs::remove_file(&source).unwrap();
+        assert!(sync_runtime_dll(&source, &destination).is_err());
+        assert_eq!(fs::read(&destination).unwrap(), b"updated DLL for the next process");
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+        fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn test_studio_color_scheme() {
